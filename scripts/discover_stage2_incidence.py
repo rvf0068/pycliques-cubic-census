@@ -9,7 +9,70 @@ from validate_census import catalog, fold, pared_step, relabel, read_csv
 from verify_coaffine import verify_expansive
 
 
-def certificate(host, ans):
+def fold_active_ids(graph):
+    """Return surviving original IDs under validate_census.fold's order."""
+    closed = {v: set(graph[v]) | {v} for v in graph}
+    remaining = set(graph)
+    while remaining:
+        move = next(
+            ((v, w) for v in sorted(remaining) for w in sorted(graph[v])
+             if closed[v] <= closed[w]),
+            None,
+        )
+        if move is None:
+            break
+        v, _ = move
+        for u in graph[v]:
+            closed[u].remove(v)
+        remaining.remove(v)
+    return sorted(remaining)
+
+
+def build_host(cubic):
+    p0 = relabel(fold(nx.complement(cubic)))
+    p1 = pared_step(p0)
+    raw = pc.ImplicitCliqueGraph.from_graph(p1, max_cliques=3000)
+    if raw is None:
+        return None, None, None, {"reason": "P2 clique count exceeded 3000"}
+    pared = raw.pare()
+    if not pc.verify_implicit_paring(raw, pared):
+        raise AssertionError("implicit paring certificate failed")
+
+    # The implicit constructor sorts support masks numerically, whereas
+    # validate_census.clique_masks sorts the corresponding vertex tuples.
+    # Conjugate the implicit IDs to the canonical explicit P2 IDs by support.
+    supports = clique_masks(p1, numeric=False)
+    raw_graph = intersection_graph(supports)
+    active_raw_ids = fold_active_ids(raw_graph)
+    raw_id_by_mask = {mask: i for i, mask in enumerate(supports)}
+    canonical_id = {raw_id: i for i, raw_id in enumerate(active_raw_ids)}
+    host = pared.core
+    to_canonical = {}
+    for v in host:
+        support_mask = sum(1 << u for u in host.clique(v))
+        raw_id = raw_id_by_mask[support_mask]
+        to_canonical[v] = canonical_id[raw_id]
+
+    canonical_graph = pared_step(p1)
+    if len(host) != len(canonical_graph):
+        raise AssertionError("implicit and explicit pared P2 orders differ")
+    if set(to_canonical.values()) != set(canonical_graph):
+        raise AssertionError("support relabeling is not bijective")
+    implicit_graph = host.to_networkx(max_edges=8_000_000)
+    if implicit_graph is None:
+        raise AssertionError("implicit host exceeds verification edge cap")
+    for u in implicit_graph:
+        for v in implicit_graph:
+            if implicit_graph.has_edge(u, v) != canonical_graph.has_edge(
+                to_canonical[u], to_canonical[v]
+            ):
+                raise AssertionError("support-based P2 relabeling is not an isomorphism")
+    info = {"p0": len(p0), "p1": len(p1), "raw_p2": len(raw),
+            "pared_p2": len(host), "ground": len(host.base_vertices)}
+    return host, canonical_graph, to_canonical, info
+
+
+def certificate(host, canonical_graph, to_canonical, ans):
     if ans.status.name != "FOUND":
         return None
     graph = host.to_networkx(max_edges=8_000_000)
@@ -22,33 +85,20 @@ def certificate(host, ans):
     assert pc.verify_retraction_witness(
         graph, target, (ans.retraction, inclusion))
     assert pc.verify_coaffine_endomorphism(graph, ans.endomorphism)
-    nodes = sorted(graph)
-    relabel_map = {v: i for i, v in enumerate(nodes)}
-    G = nx.relabel_nodes(graph, relabel_map, copy=True)
-    f = {relabel_map[v]: relabel_map[w]
+
+    # Translate both the endomorphism and its invariant factors to the
+    # explicit P2 labels used by the repository's solver-free verifier.
+    f = {to_canonical[v]: to_canonical[w]
          for v, w in ans.endomorphism.items()}
-    assert len(ans.antipodal_pairs) >= 3
-    factors = [[relabel_map[v] for v in pair] for pair in ans.antipodal_pairs[:3]]
-    proof = {"stage": 2, "host_order": len(G),
-             "map": [f[v] for v in range(len(G))],
-             "factors": factors, "method": "implicit_incidence_hybrid"}
-    verify_expansive(G, proof)
+    factors = [[to_canonical[v] for v in pair]
+               for pair in ans.antipodal_pairs[:3]]
+    proof = {"stage": 2, "host_order": len(canonical_graph),
+             "map": [f[v] for v in range(len(canonical_graph))],
+             "factors": factors, "method": "implicit_incidence_hybrid",
+             "target_type": "octahedral",
+             "octahedral_dimension": len(ans.antipodal_pairs)}
+    verify_expansive(canonical_graph, proof)
     return proof
-
-
-def build_host(cubic):
-    p0 = relabel(fold(nx.complement(cubic)))
-    p1 = pared_step(p0)
-    raw = pc.ImplicitCliqueGraph.from_graph(p1, max_cliques=3000)
-    if raw is None:
-        return None, {"reason": "P2 clique count exceeded 3000"}
-    pared = raw.pare()
-    if not pc.verify_implicit_paring(raw, pared):
-        raise AssertionError("implicit paring certificate failed")
-    return pared.core, {"p0": len(p0), "p1": len(p1),
-                        "raw_p2": len(raw), "pared_p2": len(pared.core),
-                        "ground": len(pared.core.base_vertices)}
-
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -63,7 +113,7 @@ def main():
     for identifier in args.ids:
         assert ledger[identifier]["status"] == "DIVERGENT"
         assert ledger[identifier]["stage"] == "2.0"
-        host, info = build_host(graphs[identifier])
+        host, canonical_graph, to_canonical, info = build_host(graphs[identifier])
         print("HOST", identifier, json.dumps(info), flush=True)
         if host is None:
             print("LIMIT", identifier, json.dumps(info), flush=True)
@@ -75,7 +125,7 @@ def main():
                     max_steps=args.steps, max_states=args.states,
                     time_limit=args.seconds, executable=executable,
                     sat_max_clauses=6000000, sat_memory_limit_mb=3072)
-                proof = certificate(host, ans)
+                proof = certificate(host, canonical_graph, to_canonical, ans)
             except (RuntimeError, ValueError) as exc:
                 print("ERROR", identifier, seed, repr(exc), flush=True)
                 continue

@@ -1,5 +1,6 @@
 name: Stage-two incidence rediscovery
 on:
+  workflow_dispatch:
   push:
     branches: [research/stage2-incidence]
 permissions:
@@ -12,10 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         ids:
-          - "100 135 150"
-          - "189 241 253"
-          - "419 430 432"
-          - "437 450"
+          - "135 150 253 437"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
