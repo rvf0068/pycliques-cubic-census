@@ -23,10 +23,12 @@ All 540 pairs of homotopy types of G and K(G) are recorded as exact wedges of sp
 - [Org-mode reproduction workbook](docs/cubic_complements_reproduction.org)
 - [Saved graph 308 cut certificate](certificates/308.json)
 
-Four historical divergent claims (150, 252, 270, 472) lack recovered maps even in the previous research ledger. Other positive witnesses were reported replayed in the research sessions, but the first repository import does not include all of those witnesses. Do not confuse the ledger with a complete certificate archive.
+The current repository has [replayable divergence certificates](certificates/README.md) for **469 of 502** recorded divergent cases: 396 at depth zero, 72 at depth one, and graph 308 at depth two. Together with the 18 point reductions, this gives 487 behavior proofs replayable without search. The other 33 recorded divergent cases still lack a bundled witness.
+
+Four historical divergent claims (150, 252, 270, 472) lack recovered maps even in the previous research ledger. Other positive witnesses were reported replayed in the research sessions, but not all of those witnesses are bundled yet. Do not confuse the ledger with a complete certificate archive.
 
 ## Quick checks
 
-Run `uv run --with networkx python scripts/validate_census.py`. See the workbook for the package-dependent searches. Search algorithms belong in the monorepo; this repository holds data, evidence and reproduction drivers. Timeouts are inconclusive.
+Run `uv run --with networkx python scripts/validate_census.py` and `uv run --with networkx python scripts/verify_coaffine.py`. See the workbook for the package-dependent searches. Search algorithms belong in the monorepo; this repository holds data, evidence and reproduction drivers. Timeouts are inconclusive.
 
 Future additions: remaining archived certificates, independent verifiers, small-order per-ID ledgers, package-only rediscovery, and a browsable census.
