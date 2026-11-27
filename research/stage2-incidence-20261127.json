@@ -15,7 +15,7 @@
     "max_cliques": 3000,
     "max_edges_for_verification": 8000000
   },
-  "note": "The host is reconstructed implicitly as the paring core of K(P1). Every FOUND result was checked as an induced octahedron, an ordinary retraction, a coaffine endomorphism and an expansive stable-image witness before it was printed.",
+  "note": "The host is reconstructed implicitly as the paring core of K(P1). Every FOUND result was checked as an induced octahedron, an ordinary retraction, a coaffine endomorphism and an expansive stable-image witness before it was printed. A follow-up canonical-export run corrected the implicit-ID versus explicit-P2 label correspondence for 135, 150, 253 and 437; the stored maps are now in the deterministic explicit P2 order used by the independent verifier.",
   "attempts": {
     "100": {
       "status": "FOUND",
@@ -49,7 +49,10 @@
         "ground": 30
       },
       "job_id": 140317558944,
-      "attempts": []
+      "attempts": [],
+      "canonical_export_run": 45944200746,
+      "canonical_export_seed": 139,
+      "canonical_export_states": 222714
     },
     "150": {
       "status": "FOUND",
@@ -66,7 +69,10 @@
         "ground": 31
       },
       "job_id": 140317558944,
-      "attempts": []
+      "attempts": [],
+      "canonical_export_run": 45944200746,
+      "canonical_export_seed": 139,
+      "canonical_export_states": 160576
     },
     "189": {
       "status": "FOUND",
@@ -117,7 +123,10 @@
         "ground": 30
       },
       "job_id": 140317559207,
-      "attempts": []
+      "attempts": [],
+      "canonical_export_run": 45944200746,
+      "canonical_export_seed": 139,
+      "canonical_export_states": 22613
     },
     "419": {
       "status": "NOT_REDISCOVERED",
@@ -226,7 +235,10 @@
           "uncovered": 2,
           "partial_cuts": 28
         }
-      ]
+      ],
+      "canonical_export_run": 45944200746,
+      "canonical_export_seed": 137,
+      "canonical_export_states": 19165
     },
     "450": {
       "status": "NOT_REDISCOVERED",
@@ -267,5 +279,13 @@
     }
   },
   "found": 9,
-  "not_rediscovered": 2
+  "not_rediscovered": 2,
+  "canonical_export_run": 45944200746,
+  "canonical_export_ids": [
+    "135",
+    "150",
+    "253",
+    "437"
+  ],
+  "canonical_labeling": "Implicit clique IDs were conjugated to validate_census.pared_step(P1) labels by matching their support masks; the script verifies the resulting graph isomorphism before saving maps."
 }
