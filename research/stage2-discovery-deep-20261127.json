@@ -1,0 +1,501 @@
+{
+  "schema": 1,
+  "run": 45941313089,
+  "monorepo_commit": "e1e9ed04f5c1f962a5f7e70312fb8df16e5a6a78",
+  "settings": {
+    "native_seconds": 15,
+    "sat_seconds": 30,
+    "max_states": 1000000,
+    "relabel_seeds": [
+      0,
+      137,
+      271,
+      139
+    ]
+  },
+  "note": "The SAT invocation in this run was rejected before solving because the script passed value_order='fiber', unsupported by the SAT backend. Native searches ran normally. The checked discovery script is corrected to omit value_order for SAT and the workflow installs libz3-4.",
+  "attempts": {
+    "100": {
+      "status": "FOUND",
+      "method": "native_octahedral_label",
+      "host_order": 302,
+      "job_id": 140316032301,
+      "attempts": [
+        {
+          "method": "native_coaffine_fiber",
+          "found": false
+        },
+        {
+          "method": "native_coaffine_label",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_fiber",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_label",
+          "found": true
+        }
+      ]
+    },
+    "135": {
+      "status": "NOT_REDISCOVERED",
+      "host_order": 386,
+      "job_id": 140316032301,
+      "attempts": [
+        {
+          "method": "native_coaffine_fiber",
+          "found": false
+        },
+        {
+          "method": "native_coaffine_label",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_fiber",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_137_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_137_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_271_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_271_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_139_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_139_label",
+          "found": false
+        },
+        {
+          "method": "sat_octahedral",
+          "error": "ValueError(\"SAT backend does not support value_order='fiber'\")"
+        },
+        {
+          "method": "sat_octahedral",
+          "found": false
+        }
+      ]
+    },
+    "150": {
+      "status": "NOT_REDISCOVERED",
+      "host_order": 392,
+      "job_id": 140316032301,
+      "attempts": [
+        {
+          "method": "native_coaffine_fiber",
+          "found": false
+        },
+        {
+          "method": "native_coaffine_label",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_fiber",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_137_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_137_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_271_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_271_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_139_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_139_label",
+          "found": false
+        },
+        {
+          "method": "sat_octahedral",
+          "error": "ValueError(\"SAT backend does not support value_order='fiber'\")"
+        },
+        {
+          "method": "sat_octahedral",
+          "found": false
+        }
+      ]
+    },
+    "189": {
+      "status": "FOUND",
+      "method": "native_octahedral_label",
+      "host_order": 461,
+      "job_id": 140316032437,
+      "attempts": [
+        {
+          "method": "native_coaffine_fiber",
+          "found": false
+        },
+        {
+          "method": "native_coaffine_label",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_fiber",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_label",
+          "found": true
+        }
+      ]
+    },
+    "241": {
+      "status": "FOUND",
+      "method": "native_octahedral_label",
+      "host_order": 474,
+      "job_id": 140316032437,
+      "attempts": [
+        {
+          "method": "native_coaffine_fiber",
+          "found": false
+        },
+        {
+          "method": "native_coaffine_label",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_fiber",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_137_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_137_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_271_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_271_label",
+          "found": true
+        }
+      ]
+    },
+    "253": {
+      "status": "NOT_REDISCOVERED",
+      "host_order": 386,
+      "job_id": 140316032437,
+      "attempts": [
+        {
+          "method": "native_coaffine_fiber",
+          "found": false
+        },
+        {
+          "method": "native_coaffine_label",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_fiber",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_137_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_137_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_271_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_271_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_139_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_139_label",
+          "found": false
+        },
+        {
+          "method": "sat_octahedral",
+          "error": "ValueError(\"SAT backend does not support value_order='fiber'\")"
+        },
+        {
+          "method": "sat_octahedral",
+          "found": false
+        }
+      ]
+    },
+    "419": {
+      "status": "FOUND",
+      "method": "native_octahedral_label",
+      "host_order": 401,
+      "job_id": 140316032039,
+      "attempts": [
+        {
+          "method": "native_coaffine_fiber",
+          "found": false
+        },
+        {
+          "method": "native_coaffine_label",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_fiber",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_label",
+          "found": true
+        }
+      ]
+    },
+    "430": {
+      "status": "FOUND",
+      "method": "native_octahedral_fiber",
+      "host_order": 448,
+      "job_id": 140316032039,
+      "attempts": [
+        {
+          "method": "native_coaffine_fiber",
+          "found": false
+        },
+        {
+          "method": "native_coaffine_label",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_fiber",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_fiber",
+          "found": true
+        }
+      ]
+    },
+    "432": {
+      "status": "FOUND",
+      "method": "native_octahedral_label",
+      "host_order": 316,
+      "job_id": 140316032039,
+      "attempts": [
+        {
+          "method": "native_coaffine_fiber",
+          "found": false
+        },
+        {
+          "method": "native_coaffine_label",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_fiber",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_137_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_137_label",
+          "found": true
+        }
+      ]
+    },
+    "437": {
+      "status": "NOT_REDISCOVERED",
+      "host_order": 490,
+      "job_id": 140316032318,
+      "attempts": [
+        {
+          "method": "native_coaffine_fiber",
+          "found": false
+        },
+        {
+          "method": "native_coaffine_label",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_fiber",
+          "found": false
+        },
+        {
+          "method": "native_octahedral_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_0_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_137_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_137_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_271_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_271_label",
+          "found": false
+        },
+        {
+          "method": "native_reordered_139_fiber",
+          "found": false
+        },
+        {
+          "method": "native_reordered_139_label",
+          "found": false
+        },
+        {
+          "method": "sat_octahedral",
+          "error": "ValueError(\"SAT backend does not support value_order='fiber'\")"
+        },
+        {
+          "method": "sat_octahedral",
+          "found": false
+        }
+      ]
+    },
+    "450": {
+      "status": "FOUND",
+      "method": "native_coaffine_label",
+      "host_order": 511,
+      "job_id": 140316032318,
+      "attempts": [
+        {
+          "method": "native_coaffine_fiber",
+          "found": false
+        },
+        {
+          "method": "native_coaffine_label",
+          "found": true
+        }
+      ]
+    }
+  },
+  "found": 7,
+  "not_rediscovered": 4
+}
