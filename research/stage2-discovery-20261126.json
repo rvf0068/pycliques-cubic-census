@@ -1,0 +1,122 @@
+{
+  "run": 45936473197,
+  "seconds_per_native_call": 5,
+  "seconds_per_sat_call": 10,
+  "attempts": {
+    "47": {
+      "status": "FOUND",
+      "method": "sat_octahedral",
+      "job": 140300725026
+    },
+    "157": {
+      "status": "FOUND",
+      "method": "native_coaffine_fiber",
+      "job": 140300725327
+    },
+    "164": {
+      "status": "FOUND",
+      "method": "native_reordered_137",
+      "job": 140300725327
+    },
+    "183": {
+      "status": "FOUND",
+      "method": "native_coaffine_fiber",
+      "job": 140300725327
+    },
+    "189": {
+      "status": "NOT_REDISCOVERED",
+      "job": 140300725250
+    },
+    "240": {
+      "status": "FOUND",
+      "method": "native_coaffine_fiber",
+      "job": 140300725250
+    },
+    "241": {
+      "status": "NOT_REDISCOVERED",
+      "job": 140300725250
+    },
+    "252": {
+      "status": "FOUND",
+      "method": "native_reordered_137",
+      "job": 140300725393
+    },
+    "270": {
+      "status": "FOUND",
+      "method": "native_reordered_137",
+      "job": 140300725393
+    },
+    "300": {
+      "status": "FOUND",
+      "method": "native_coaffine_fiber",
+      "job": 140300725300
+    },
+    "373": {
+      "status": "FOUND",
+      "method": "native_coaffine_fiber",
+      "job": 140300725300
+    },
+    "379": {
+      "status": "FOUND",
+      "method": "native_coaffine_fiber",
+      "job": 140300725026
+    },
+    "393": {
+      "status": "FOUND",
+      "method": "native_coaffine_fiber",
+      "job": 140300725300
+    },
+    "402": {
+      "status": "FOUND",
+      "method": "native_coaffine_fiber",
+      "job": 140300725405
+    },
+    "404": {
+      "status": "FOUND",
+      "method": "native_coaffine_fiber",
+      "job": 140300725405
+    },
+    "409": {
+      "status": "FOUND",
+      "method": "native_coaffine_fiber",
+      "job": 140300725405
+    },
+    "418": {
+      "status": "FOUND",
+      "method": "native_coaffine_fiber",
+      "job": 140300725310
+    },
+    "419": {
+      "status": "NOT_REDISCOVERED",
+      "job": 140300725026
+    },
+    "420": {
+      "status": "FOUND",
+      "method": "native_coaffine_fiber",
+      "job": 140300725310
+    },
+    "427": {
+      "status": "FOUND",
+      "method": "native_coaffine_label",
+      "job": 140300725287
+    },
+    "430": {
+      "status": "NOT_REDISCOVERED",
+      "job": 140300725287
+    },
+    "432": {
+      "status": "NOT_REDISCOVERED",
+      "job": 140300725287
+    },
+    "440": {
+      "status": "FOUND",
+      "method": "native_coaffine_fiber",
+      "job": 140300725310
+    },
+    "472": {
+      "status": "FOUND",
+      "method": "native_coaffine_fiber",
+      "job": 140300725393
+    }
+  }
+}
