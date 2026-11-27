@@ -2,7 +2,7 @@
 
 Research database of clique dynamics and flag-complex homotopy types of complements of finite simple cubic graphs. Companion to [pycliques-project](https://github.com/rvf0068/pycliques-project).
 
-## Order 14 snapshot (26 November 2026)
+## Order 14 census (dataset snapshot 26 November 2026; certificate update 27 November 2026)
 
 | Scope | Number |
 |---|---:|
@@ -23,12 +23,12 @@ All 540 pairs of homotopy types of G and K(G) are recorded as exact wedges of sp
 - [Org-mode reproduction workbook](docs/cubic_complements_reproduction.org)
 - [Saved graph 308 cut certificate](certificates/308.json)
 
-The current repository has [replayable divergence certificates](certificates/README.md) for **491 of 502** recorded divergent cases: 396 at depth zero, 72 at depth one, and 23 at depth two (22 coaffine witnesses plus graph 308). Together with the 18 point reductions, this gives 509 behavior proofs replayable without search. The other 11 recorded divergent cases still lack a bundled witness.
+The repository now contains independently replayable proofs for **all 502 divergent and all 18 clique-null cases**: all 520 determined behavior classifications. The divergence proofs comprise 396 stage-zero coaffine stable-image certificates, 72 stage-one certificates, 33 stage-two coaffine certificates, and graph 308's separate incidence-cut retraction. The 18 null cases are checked by their point-paring certificates. The remaining 20 graphs are mathematically unresolved in the current ledger.
 
-Four historical divergent claims (150, 252, 270, 472) originally lacked recovered maps. Fresh proofs now establish 252, 270 and 472; only 150 remains historical-only. The 11 recorded divergent cases without bundled witnesses are 100, 135, 150, 189, 241, 253, 419, 430, 432, 437 and 450. See [the bounded stage-two discovery record](research/stage2-discovery-20261126.json). Do not confuse the ledger with a complete certificate archive.
+The four verdicts that originally had only historical provenance (150, 252, 270, 472) now all have fresh witnesses. Graph 150 was recovered by the implicit incidence search. The new [deep native search record](research/stage2-discovery-deep-20261127.json) and [implicit incidence record](research/stage2-incidence-20261127.json) document the final eleven recoveries. The older source labels remain unchanged in the ledger for provenance.
 
 ## Quick checks
 
 Run `uv run --with networkx python scripts/validate_census.py` and `uv run --with networkx python scripts/verify_coaffine.py`. See the workbook for the package-dependent searches. Search algorithms belong in the monorepo; this repository holds data, evidence and reproduction drivers. Timeouts are inconclusive.
 
-Future additions: remaining archived certificates, independent verifiers, small-order per-ID ledgers, package-only rediscovery, and a browsable census.
+Future additions: individual homotopy-certificate replay, complete small-order per-ID ledgers, and a browsable census. The order-14 behavior ledger is now fully certified.

@@ -1,6 +1,6 @@
 #+TITLE: Cubic complements: graph-by-graph reproduction workbook
 #+SUBTITLE: Clique behavior, homotopy types, and certificate checks using pycliques and pycombtop
-#+DATE: 2026-11-26
+#+DATE: 2026-11-27
 #+LANGUAGE: en
 #+OPTIONS: toc:3 num:t ^:{}
 #+STARTUP: show2levels
@@ -10,11 +10,11 @@
 
 This workbook accompanies =cubic_complements_survey.tex=. It is an executable research guide, not a claim that the entire census has been rerun using today's packages. It contains the recovered order-14 ledger for *every one of the 540 inputs*, including the recorded wedge decompositions of both \(\Delta(G)\) and \(\Delta(K(G))\), the behavior, depth and historical certificate method. The table below is embedded; no external CSV is needed for these expectations.
 
-Of the 540, 509 are complements of connected cubic graphs and 31 are complements of disconnected cubic graphs. There are 502 recorded divergent, 18 clique-null, 20 unresolved. Four divergent verdicts (150, 252, 270, 472) were carried forward from older reports, but their maps have not been recovered in the reconstructed ledger. Treat them as *historical only* until a new witness is found or the old certificate is recovered. The other 498 were recorded with replayed positive witnesses. This workbook does not turn archived claims into fresh production-package results merely by reading the ledger.
+Of the 540, 509 are complements of connected cubic graphs and 31 are complements of disconnected cubic graphs. There are 502 recorded divergent, 18 clique-null, and 20 unresolved. All 502 divergent cases now have replayable repository certificates: 396 at stage zero, 72 at stage one, 33 coaffine witnesses at stage two, and the separate 22-cut retraction for graph 308. All 18 clique-null cases have point-paring certificates. The four records (150, 252, 270, 472) that originally had only historical provenance now all have fresh witnesses; graph 150 was recovered by the implicit incidence-cut search. The original source labels are retained, but no determined case remains historical-only.
 
-All 540 first-level homotopy pairs were reported as exact wedges (19 equal, 521 different). A dictionary of dimension:multiplicity denotes a wedge; the empty dictionary denotes a point. Neither Betti-number equality nor a timeout is an exact homotopy certificate. Some hard topology cases were resolved with archived research prototypes, and several stage-two behavior proofs used specialized local search heuristics not yet fully integrated into the public APIs. The package-only route below provides a principled fresh search and verifies positive results; it is not a guarantee of success at the specified budgets. Every row gets its own route, expected result and output status. In particular there is no assertion that =find_coaffine_endomorphism= alone certifies divergence.
+All 540 first-level homotopy pairs were reported as exact wedges (19 equal, 521 different). A dictionary of dimension:multiplicity denotes a wedge; the empty dictionary denotes a point. Neither Betti-number equality nor a timeout is an exact homotopy certificate. The behavior portfolio now has a saved proof for every determined row, although a cold bounded search is not guaranteed to rediscover each witness. The new stage-two certificates use the public native coaffine/octahedral engines and the implicit incidence-cut hybrid. Every row gets its own route, expected result and output status. In particular there is no assertion that =find_coaffine_endomorphism= alone certifies divergence.
 
-The source reviewed for this workbook is the current default branch of [[https://github.com/rvf0068/pycliques-project][pycliques-project]], including search results pinned to commit =e1e9ed04f5c1f962a5f7e70312fb8df16e5a6a78=. Files examined include [[https://github.com/rvf0068/pycliques-project/blob/main/docs/general_retraction_and_implicit_cliques.md][general retraction and implicit cliques]], [[https://github.com/rvf0068/pycliques-project/blob/main/docs/clique_behavior.md][clique behavior]], =coaffine_endomorphisms.py=, =octahedral_incidence.py=, =clique_sequence.py=, and =homotopy_type.py=. The packages were not installed in the survey runtime, so the full package run must be performed in your own monorepo environment. I did independently replay the cut certificate of 308 with NetworkX, and check the census transcription and the standalone verification routines as described below. No PR or change to the monorepo is made.
+The source reviewed for this workbook is the current default branch of [[https://github.com/rvf0068/pycliques-project][pycliques-project]], including search results pinned to commit =e1e9ed04f5c1f962a5f7e70312fb8df16e5a6a78=. Files examined include [[https://github.com/rvf0068/pycliques-project/blob/main/docs/general_retraction_and_implicit_cliques.md][general retraction and implicit cliques]], [[https://github.com/rvf0068/pycliques-project/blob/main/docs/clique_behavior.md][clique behavior]], =coaffine_endomorphisms.py=, =octahedral_incidence.py=, =clique_sequence.py=, and =homotopy_type.py=. The package-dependent stage-two runs were performed in GitHub Actions against that pinned commit. This repository independently replays the resulting maps with NetworkX; graph 308's 22-cut certificate is also replayed separately. No PR or change to the monorepo is made.
 
 References: Rafael Villarroel-Flores, [[https://doi.org/10.1016/j.disc.2022.113230][On the clique behavior and Hellyness of the complements of regular graphs]], Discrete Mathematics 346 (2023), 113230; the LAGOS 2023 draft /The Clique Behavior of the Complement of Cubic Graphs/; Larrión, Neumann-Lara and Pizaña, [[https://doi.org/10.1016/j.ejc.2008.05.005][On expansive graphs]], EJC 30 (2009), 372--379, Theorems 2.4, 3.6 and 4.6; Frías-Armenta, Neumann-Lara and Pizaña, /Dismantlings and iterated clique graphs/, DM 282 (2004), 263--265. The data are from [[https://houseofgraphs.org/Cubic][House of Graphs]].
 
@@ -48,7 +48,7 @@ import pycliques as pc
 import pycombtop as pt
 from pyg6data import list_cubic_graphs
 
-OUT = Path.home() / 'cubic-complement-replay-20261126'
+OUT = Path.home() / 'cubic-complement-replay-20261127'
 OUT.mkdir(exist_ok=True)
 
 # A fixed data file, not a fresh nauty numbering. Git blob hashes include
@@ -210,7 +210,7 @@ def decode(identifier, token):
     status, stage, source = BEHAVIOR_SOURCE[k]
     return dict(id=identifier, G=profile(a), KG=profile(b),
                 homotopy_source=HOMO_SOURCE[h], status=status,
-                stage=stage, behavior_source=source, historical_only=k == 7)
+                stage=stage, behavior_source=source, historical_source=k == 7, historical_only=False)
 
 def load_ledger():
     rows = {}
@@ -235,7 +235,8 @@ assert Counter(r['stage'] for r in LEDGER.values() if r['status'] == 'DIVERGENT'
 assert sum(r['G'] == r['KG'] for r in LEDGER.values()) == 19
 assert sum(not r['G'] for r in LEDGER.values()) == 28
 assert sum(not r['KG'] for r in LEDGER.values()) == 22
-assert [i for i,r in LEDGER.items() if r['historical_only']] == ['150','252','270','472']
+assert [i for i,r in LEDGER.items() if r['historical_source']] == ['150','252','270','472']
+assert not any(r['historical_only'] for r in LEDGER.values())
 OPEN = [i for i,r in LEDGER.items() if r['status']=='UNRESOLVED']
 assert OPEN == '94 127 182 185 206 283 287 320 344 363 368 441 442 451 462 473 497 506 508 509'.split()
 with (OUT/'cubic14_expected.csv').open('w', newline='') as file:
@@ -470,7 +471,7 @@ def incidence_search(seq, *, backend='walk', seed=139, steps=250_000,
 
 * Graph-by-graph behavior reproduction
 
-The historical source field specifies the first successful criterion in the recovered ledger. For 396 depth-zero and 72 depth-one records, start with a coaffine expansive stable-image search at exactly that level. For the 18 null records, construct the exact point reduction at its recorded depth. The 34 depth-two positive rows split as follows:
+The historical source field specifies the first successful criterion in the recovered ledger. For 396 depth-zero and 72 depth-one records, start with a coaffine expansive stable-image search at exactly that level. For the 18 null records, construct the exact point reduction at its recorded depth. The 34 depth-two positive rows (33 coaffine certificates plus graph 308's cut retraction) split historically as follows:
 
 | Historical method | IDs | Package-first route |
 |-------------------+-----+---------------------|
@@ -481,7 +482,17 @@ The historical source field specifies the first successful criterion in the reco
 | Random relabel | 183 427 | deterministic relabel portfolio |
 | Incidence restart | 308 | replay masks; incidence walk/SAT |
 | Pair-first CSP | 422 | native/SAT or incidence |
-| Older record only | 150 252 270 472 | fresh witness required; do not mark replayed |
+| Older report source | 150 252 270 472 | all now have fresh certificates; see the follow-up table |
+
+** New repository replay of the eleven formerly unbundled stage-two cases
+
+| Saved certificate route | IDs | Verification |
+|-------------------------+-----+--------------|
+| Native octahedral coaffine | 100 189 241 419 430 432 | stable image is an induced O_d; f^2 is the retraction |
+| Native general coaffine | 450 | expansive invariant subjoin in the stable image |
+| Implicit incidence-cut hybrid | 135 150 253 437 | ordinary retractions onto O_24, O_20, O_26, O_29 |
+
+The incidence witnesses have pared P2 orders 386, 392, 386 and 490, respectively. The incidence engine constructs the host as the paring core of the implicit clique graph of P1; it verifies the paring, induced octahedron and retraction before accepting a result. Special octahedra are included as a special case of these retractions. The two follow-up run records retain seeds, limits, host sizes and unsuccessful attempts. All eleven former gaps are now closed.
 
 Production regression scripts [[https://github.com/rvf0068/pycliques-project/blob/main/research/replay_cubic14_379.py][379]] and [[https://github.com/rvf0068/pycliques-project/blob/main/research/replay_cubic14_sat.py][47/419]] document blind reproduction with package APIs. The 379 script checks P0,P1,P2 orders 14,34,541, P2 edge count 132098, exact point and S5 topologies, and a native O20 witness. The SAT script tests 47 (P2 order 210) and 419 (order 401) with 120-second solver budgets. The archived session found O13 and O24 respectively (419 also O21); a new witness may have a different dimension. The current production incidence script [[https://github.com/rvf0068/pycliques-project/blob/main/research/replay_cubic14_incidence.py][incidence near cases]] is deliberately bounded; its 441,442,451 outputs are not classifications.
 
@@ -552,7 +563,7 @@ If the current package changes its base atom order or fold labeling, this replay
 
 ** Unified behavior driver, with a result for every row
 
-For the expensive depth-two hosts, use budgets and record actual status. To avoid constructing enormous P3 graphs the default driver stops at the recorded depth. The earlier archived stage-two methods (joint, pair-first, arbitrary expansive stable image and special incidence restart) do not all correspond one-to-one to public entry points. The following route uses existing engines, tries historically relevant ones first and records a positive proof only when it has verified the sufficient criterion. A finite search cannot promise to rediscover all 502 witnesses. Four historical-only cases are explicitly marked. The =deep= switch enables the private leaf predicate and more expensive fallbacks. The default excludes unresolved graphs from the batch; it is easy to try them individually. A result from the standard classifier is reported separately with its reason and certificate rule; it is a package verdict, not the independent witness replay done by the custom adapters.
+For the expensive depth-two hosts, use budgets and record actual status. To avoid constructing enormous P3 graphs the default driver stops at the recorded depth. The earlier archived stage-two methods (joint, pair-first, arbitrary expansive stable image and special incidence restart) do not all correspond one-to-one to public entry points. The current repository nevertheless contains independently replayable proofs for all 502 divergent cases. The four older-source records are no longer historical-only. A fresh bounded search is not guaranteed to rediscover all saved witnesses; the =deep= switch enables the private leaf predicate and more expensive fallbacks. The default excludes unresolved graphs from the batch; it is easy to try them individually. A result from the standard classifier is reported separately with its reason and certificate rule; it is a package verdict, not the independent witness replay done by the custom adapters.
 
 #+begin_src jupyter-python
 def behavior_one(identifier, *, deep=False, seconds=30, states=200_000,
@@ -560,7 +571,8 @@ def behavior_one(identifier, *, deep=False, seconds=30, states=200_000,
     row = LEDGER[identifier]
     G = G14[identifier]
     base = dict(id=identifier, expected=row['status'], recorded_stage=row['stage'],
-                historical_only=row['historical_only'], source=row['behavior_source'])
+                historical_only=row['historical_only'], historical_source=row['historical_source'],
+                source=row['behavior_source'])
     if identifier=='308' and replay308:
         return {**base,'actual':'DIVERGENT','route':'archived O22 cut replay',
                 'proof':replay_308()}

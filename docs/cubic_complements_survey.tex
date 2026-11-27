@@ -23,11 +23,11 @@
 \newcommand{\code}[1]{\texttt{#1}}
 \title{Clique dynamics and topology of complements of cubic graphs\\\large A census and methods for implicit iterates}
 \author{Research survey and computational record}
-\date{26 November 2026}
+\date{27 November 2026}
 \begin{document}
 \maketitle
 \begin{abstract}
-We survey the investigation of clique behavior and clique-complex homotopy types of complements of cubic graphs, concentrating on order fourteen. The recovered ledger of all 540 inputs (509 connected cubic graphs and 31 disconnected ones) records 502 divergent, 18 clique-null and 20 undetermined complements. Four of the positive records have not been independently replayed in the recovered ledger. The homotopy ledger records exact wedge types for the original and first clique graphs on all 540 inputs. We develop coaffine stable-image criteria, a necessary-and-sufficient incidence-cut characterization of octahedral retractions (including special octahedra), symbolic lifting and obstructions, Helly-defect bounds, and ranked replacement templates for implicit paring. These tools yield large but finite growth bounds, exact negative results for specified certificate classes and a certified lower bound of 102,516,282 simultaneous dominated deletions in the third-level precursor of graph 182. None of those latter results decides the behavior of the remaining twenty graphs. The accompanying Org workbook distinguishes blind package searches from historical certificate replay.
+We survey the investigation of clique behavior and clique-complex homotopy types of complements of cubic graphs, concentrating on order fourteen. The recovered ledger of all 540 inputs (509 connected cubic graphs and 31 disconnected ones) records 502 divergent, 18 clique-null and 20 undetermined complements. All 502 divergent records and all 18 clique-null records now have independently replayable behavior certificates in the repository; 20 cases remain undetermined. The homotopy ledger records exact wedge types for the original and first clique graphs on all 540 inputs. We develop coaffine stable-image criteria, a necessary-and-sufficient incidence-cut characterization of octahedral retractions (including special octahedra), symbolic lifting and obstructions, Helly-defect bounds, and ranked replacement templates for implicit paring. These tools yield large but finite growth bounds, exact negative results for specified certificate classes and a certified lower bound of 102,516,282 simultaneous dominated deletions in the third-level precursor of graph 182. None of those latter results decides the behavior of the remaining twenty graphs. The accompanying Org workbook distinguishes blind package searches from historical certificate replay.
 \end{abstract}
 \tableofcontents
 \section{Background and notation}
@@ -64,17 +64,19 @@ Order & All & Connected & Convergent & Divergent & Unresolved\\\midrule
 \end{tabular}
 \caption{Small-order historical results from \cite{lagos}, and the recovered order-14 ledger. The order-12 line is the draft baseline, not a claim that all later work has been replayed. The later predecessor record narrowed its unresolved set to two, but a complete updated per-graph ledger for order 12 was not recovered here.}
 \end{table}
-The order-14 ledger records 396 expansive witnesses at depth zero, 72 additional ones at depth one, and 34 at depth two (including four carried-forward records). The 18 convergences are all clique-null: five point reductions at depth one and thirteen at depth two. There are 471 divergent connected-cubic complements recorded, 18 null and 20 unresolved; all 31 disconnected-cubic complements are recorded divergent. In the strict recovered-certificate accounting, 498 divergent records have a reported replay, four further positive records (150,252,270,472) are historical only, and 20 remain undetermined. This survey has not independently replayed every archived computation.
+The order-14 ledger records 396 expansive witnesses at depth zero, 72 additional ones at depth one, and 34 at depth two. The 34 depth-two proofs consist of 33 coaffine stable-image certificates and graph 308's separate 22-cut retraction. The 18 convergences are all clique-null: five point reductions at depth one and thirteen at depth two. There are 471 divergent connected-cubic complements recorded, 18 null and 20 unresolved; all 31 disconnected-cubic complements are recorded divergent. All 502 divergent cases now have replayable proofs: 501 coaffine maps plus graph 308's cut retraction. Together with the 18 point reductions, every determined behavior verdict is independently reproducible. The four records that originally had only historical provenance (150,252,270,472) now all have fresh witnesses.
+
+\paragraph{Recovery of the final depth-two certificates.}
+The eleven depth-two cases that were still missing witnesses after the first repository import have now been resolved. Native octahedral coaffine search supplied certificates for graphs
+\(100,189,241,419,430,432\); a general native coaffine map with an expansive stable-image subjoin supplied graph \(450\). The implicit incidence-cut hybrid supplied ordinary octahedral retractions for graphs \(135,150,253,437\), onto \(O_{24},O_{20},O_{26},O_{29}\), respectively. Its hosts were reconstructed as paring cores of the implicit clique graph of \(P_1\); the search verified the paring and retraction before returning a witness. Thus the special-octahedron case is included, not treated as a separate target class. The saved maps are checked by a NetworkX-only verifier in the repository; for the octahedral cases it also verifies that the stable image is an induced \(O_d\) and that \(f^2\) is a retraction onto it.
 
 \begin{center}
 \begin{tikzpicture}[x=0.021cm,y=0.75cm]
-\fill[blue!55!black] (0,0) rectangle (498,0.7);
-\fill[blue!25] (498,0) rectangle (502,0.7);
+\fill[blue!55!black] (0,0) rectangle (502,0.7);
 \fill[teal!60!black] (502,0) rectangle (520,0.7);
 \fill[orange!70] (520,0) rectangle (540,0.7);
-\node[white] at (249,.35) {498 reported replayed divergent};
-\draw (500,.75)--(500,1.1)--(400,1.1) node[left,font=\small]{4 archive-only};
-\draw (511,-.05)--(511,-.42)--(410,-.42) node[left,font=\small]{18 null};
+\node[white] at (251,.35) {502 divergent with replayable proofs};
+\draw (511,-.05)--(511,-.42)--(410,-.42) node[left,font=\small]{18 clique-null};
 \draw (530,.75)--(530,1.65)--(435,1.65) node[left,font=\small]{20 open};
 \end{tikzpicture}
 \end{center}
@@ -352,12 +354,12 @@ For the remaining twenty graphs the priorities are (i) implicit paring to a suff
 
 \appendix
 \section{Research provenance and computational proof obligations}
-The companion Org document provides all recorded behavior groups, executable package calls, explicit certificate checks and a fallback archive index. Key archives available in the continuation include (filenames are literal):
+The companion Org document provides all recorded behavior groups, executable package calls, explicit certificate checks and a fallback archive index. The current repository contains replayable behavior certificates for every determined order-14 input. Key archives available in the continuation include (filenames are literal):
 \begin{longtable}{p{.48\linewidth}p{.44\linewidth}}
 \toprule Archive or ledger & Main content\\\midrule\endhead
 \path{updated_behavior_ledger.csv} & Full classification stage and source.\\
 \path{cubic14_complete_homotopy_transitions.csv} & 540 exact recorded wedge transitions.\\
-\path{cubic_expansive_census_research.zip} & Earlier stable-image certificates and point reductions; four historical records not replayed.\\
+\path{cubic_expansive_census_research.zip} & Earlier stable-image certificates and point reductions; four older-source cases have since been recovered.\\
 \path{cubic14_final_twelve_certificates.zip} & Earlier final homotopy proofs.\\
 \path{cubic_sat_research.zip}, \path{cubic_incidence_post67_research.zip} & Stage-two SAT and cut-search work; earlier project archives.\\
 \path{certificate308.json} & 22 cuts, support data and projection; independently checked in preparation of this survey.\\

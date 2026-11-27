@@ -1,0 +1,291 @@
+{
+  "schema": 1,
+  "run": 45941804526,
+  "monorepo_commit": "e1e9ed04f5c1f962a5f7e70312fb8df16e5a6a78",
+  "settings": {
+    "backend": "hybrid",
+    "seconds_per_seed": 60,
+    "max_steps": 250000,
+    "max_states": 1000000,
+    "seeds": [
+      139,
+      137,
+      271
+    ],
+    "max_cliques": 3000,
+    "max_edges_for_verification": 8000000
+  },
+  "note": "The host is reconstructed implicitly as the paring core of K(P1). Every FOUND result was checked as an induced octahedron, an ordinary retraction, a coaffine endomorphism and an expansive stable-image witness before it was printed. A follow-up canonical-export run corrected the implicit-ID versus explicit-P2 label correspondence for 135, 150, 253 and 437; the stored maps are now in the deterministic explicit P2 order used by the independent verifier.",
+  "attempts": {
+    "100": {
+      "status": "FOUND",
+      "method": "implicit_incidence_hybrid",
+      "host_order": 302,
+      "dimension": 16,
+      "seed": 139,
+      "states": 59851,
+      "host": {
+        "p0": 14,
+        "p1": 34,
+        "raw_p2": 304,
+        "pared_p2": 302,
+        "ground": 34
+      },
+      "job_id": 140317558944,
+      "attempts": []
+    },
+    "135": {
+      "status": "FOUND",
+      "method": "implicit_incidence_hybrid",
+      "host_order": 386,
+      "dimension": 24,
+      "seed": 139,
+      "states": 222714,
+      "host": {
+        "p0": 13,
+        "p1": 30,
+        "raw_p2": 386,
+        "pared_p2": 386,
+        "ground": 30
+      },
+      "job_id": 140317558944,
+      "attempts": [],
+      "canonical_export_run": 45944200746,
+      "canonical_export_seed": 139,
+      "canonical_export_states": 222714
+    },
+    "150": {
+      "status": "FOUND",
+      "method": "implicit_incidence_hybrid",
+      "host_order": 392,
+      "dimension": 20,
+      "seed": 139,
+      "states": 160576,
+      "host": {
+        "p0": 13,
+        "p1": 31,
+        "raw_p2": 396,
+        "pared_p2": 392,
+        "ground": 31
+      },
+      "job_id": 140317558944,
+      "attempts": [],
+      "canonical_export_run": 45944200746,
+      "canonical_export_seed": 139,
+      "canonical_export_states": 160576
+    },
+    "189": {
+      "status": "FOUND",
+      "method": "implicit_incidence_hybrid",
+      "host_order": 461,
+      "dimension": 23,
+      "seed": 139,
+      "states": 181510,
+      "host": {
+        "p0": 14,
+        "p1": 30,
+        "raw_p2": 474,
+        "pared_p2": 461,
+        "ground": 30
+      },
+      "job_id": 140317559207,
+      "attempts": []
+    },
+    "241": {
+      "status": "FOUND",
+      "method": "implicit_incidence_hybrid",
+      "host_order": 474,
+      "dimension": 24,
+      "seed": 139,
+      "states": 40634,
+      "host": {
+        "p0": 13,
+        "p1": 32,
+        "raw_p2": 489,
+        "pared_p2": 474,
+        "ground": 32
+      },
+      "job_id": 140317559207,
+      "attempts": []
+    },
+    "253": {
+      "status": "FOUND",
+      "method": "implicit_incidence_hybrid",
+      "host_order": 386,
+      "dimension": 26,
+      "seed": 139,
+      "states": 22613,
+      "host": {
+        "p0": 13,
+        "p1": 30,
+        "raw_p2": 390,
+        "pared_p2": 386,
+        "ground": 30
+      },
+      "job_id": 140317559207,
+      "attempts": [],
+      "canonical_export_run": 45944200746,
+      "canonical_export_seed": 139,
+      "canonical_export_states": 22613
+    },
+    "419": {
+      "status": "NOT_REDISCOVERED",
+      "host": {
+        "p0": 13,
+        "p1": 29,
+        "raw_p2": 460,
+        "pared_p2": 401,
+        "ground": 29
+      },
+      "job_id": 140317559233,
+      "attempts": [
+        {
+          "seed": 139,
+          "status": "LIMIT_REACHED",
+          "states": 4,
+          "uncovered": 1,
+          "partial_cuts": 26
+        },
+        {
+          "seed": 137,
+          "status": "LIMIT_REACHED",
+          "states": 0,
+          "uncovered": 2,
+          "partial_cuts": 26
+        },
+        {
+          "seed": 271,
+          "status": "LIMIT_REACHED",
+          "states": 0,
+          "uncovered": 2,
+          "partial_cuts": 24
+        }
+      ]
+    },
+    "430": {
+      "status": "FOUND",
+      "method": "implicit_incidence_hybrid",
+      "host_order": 448,
+      "dimension": 25,
+      "seed": 271,
+      "states": 80290,
+      "host": {
+        "p0": 14,
+        "p1": 29,
+        "raw_p2": 489,
+        "pared_p2": 448,
+        "ground": 29
+      },
+      "job_id": 140317559233,
+      "attempts": [
+        {
+          "seed": 139,
+          "status": "LIMIT_REACHED",
+          "states": 25,
+          "uncovered": 1,
+          "partial_cuts": 23
+        },
+        {
+          "seed": 137,
+          "status": "LIMIT_REACHED",
+          "states": 0,
+          "uncovered": 2,
+          "partial_cuts": 26
+        }
+      ]
+    },
+    "432": {
+      "status": "FOUND",
+      "method": "implicit_incidence_hybrid",
+      "host_order": 316,
+      "dimension": 17,
+      "seed": 139,
+      "states": 2114,
+      "host": {
+        "p0": 14,
+        "p1": 31,
+        "raw_p2": 318,
+        "pared_p2": 316,
+        "ground": 31
+      },
+      "job_id": 140317559233,
+      "attempts": []
+    },
+    "437": {
+      "status": "FOUND",
+      "method": "implicit_incidence_hybrid",
+      "host_order": 490,
+      "dimension": 29,
+      "seed": 137,
+      "states": 19165,
+      "host": {
+        "p0": 14,
+        "p1": 28,
+        "raw_p2": 490,
+        "pared_p2": 490,
+        "ground": 28
+      },
+      "job_id": 140317559220,
+      "attempts": [
+        {
+          "id": "437",
+          "seed": 139,
+          "status": "LIMIT_REACHED",
+          "states": 0,
+          "uncovered": 2,
+          "partial_cuts": 28
+        }
+      ],
+      "canonical_export_run": 45944200746,
+      "canonical_export_seed": 137,
+      "canonical_export_states": 19165
+    },
+    "450": {
+      "status": "NOT_REDISCOVERED",
+      "host": {
+        "p0": 14,
+        "p1": 32,
+        "raw_p2": 607,
+        "pared_p2": 511,
+        "ground": 32
+      },
+      "job_id": 140317559220,
+      "attempts": [
+        {
+          "id": "450",
+          "seed": 139,
+          "status": "LIMIT_REACHED",
+          "states": 0,
+          "uncovered": 1,
+          "partial_cuts": 28
+        },
+        {
+          "id": "450",
+          "seed": 137,
+          "status": "LIMIT_REACHED",
+          "states": 0,
+          "uncovered": 1,
+          "partial_cuts": 27
+        },
+        {
+          "id": "450",
+          "seed": 271,
+          "status": "LIMIT_REACHED",
+          "states": 12,
+          "uncovered": 2,
+          "partial_cuts": 27
+        }
+      ]
+    }
+  },
+  "found": 9,
+  "not_rediscovered": 2,
+  "canonical_export_run": 45944200746,
+  "canonical_export_ids": [
+    "135",
+    "150",
+    "253",
+    "437"
+  ],
+  "canonical_labeling": "Implicit clique IDs were conjugated to validate_census.pared_step(P1) labels by matching their support masks; the script verifies the resulting graph isomorphism before saving maps."
+}
