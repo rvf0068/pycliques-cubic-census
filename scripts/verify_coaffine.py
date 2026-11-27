@@ -105,14 +105,31 @@ def main():
     graphs = catalog()
     ledger = read_csv("behavior_order14.csv")
     verified = {}
-    for stage in (0, 1):
+    for stage in (0, 1, 2):
         path = ROOT / f"certificates/coaffine_order14_stage{stage}.json"
         data = json.loads(path.read_text())
         assert data["schema"] == 1
         certs = data["certificates"]
         expected = {i for i, row in ledger.items()
                     if row["status"] == "DIVERGENT" and row["stage"] == f"{stage}.0"}
-        assert set(certs) == expected
+        if stage == 2:
+            # This bundle contains only rediscovered cases, excluding the
+            # independently verified cut certificate 308.
+            expected.remove("308")
+            report_path = ROOT / "research/stage2-discovery-20261126.json"
+            report = json.loads(report_path.read_text())
+            assert report["completed"] and set(report["attempts"]) == expected
+            assert all(a["status"] in {"FOUND", "NOT_REDISCOVERED"}
+                       for a in report["attempts"].values())
+            found = {i for i, a in report["attempts"].items()
+                     if a["status"] == "FOUND"}
+            assert set(certs) == found
+            assert report["found"] == len(found)
+            assert report["not_rediscovered"] == len(expected - found)
+            assert all(cert["method"] == report["attempts"][i]["method"]
+                       for i, cert in certs.items())
+        else:
+            assert set(certs) == expected
         for i, cert in certs.items():
             assert i not in verified and cert["stage"] == stage
             g = relabel(fold(nx.complement(graphs[i])))
@@ -120,17 +137,23 @@ def main():
                 g = pared_step(g)
             verified[i] = {"stage": stage, **verify_expansive(g, cert)}
         print(f"Stage {stage}: {len(certs)} expansive coaffine certificates verified")
-    assert len(verified) == 468
-    # This script verifies precisely the two coaffine bundles. The separate
-    # validate_census.py checks 18 point reductions and certificate 308.
+    assert len(verified) == 468 + len(found)
+    # The separate validate_census.py checks the point reductions and 308.
     not_in_bundles = sorted(i for i, row in ledger.items()
                             if row["status"] == "DIVERGENT" and i not in verified)
-    assert len(not_in_bundles) == 34 and "308" in not_in_bundles
-    print("468 divergence witnesses independently replayed")
+    assert "308" in not_in_bundles
+    missing = [i for i in not_in_bundles if i != "308"]
+    historical_missing = [i for i in missing if
+                          ledger[i]["source"] == "earlier_archived_certificate_not_replayed"]
+    print(f"{len(verified)} divergence witnesses independently replayed")
+    print(f"Recorded divergence verdicts without bundled witnesses: {len(missing)}")
+    print("Historical-only remaining:", ", ".join(historical_missing))
     if args.report:
         args.report.write_text(json.dumps(
             {"verified_coaffine": verified,
-             "divergent_not_in_coaffine_bundles": not_in_bundles}, indent=2) + "\n")
+             "divergent_not_in_coaffine_bundles": not_in_bundles,
+             "unbundled_divergence": missing,
+             "historical_only_remaining": historical_missing}, indent=2) + "\n")
 
 
 if __name__ == "__main__":

@@ -23,9 +23,9 @@ All 540 pairs of homotopy types of G and K(G) are recorded as exact wedges of sp
 - [Org-mode reproduction workbook](docs/cubic_complements_reproduction.org)
 - [Saved graph 308 cut certificate](certificates/308.json)
 
-The current repository has [replayable divergence certificates](certificates/README.md) for **469 of 502** recorded divergent cases: 396 at depth zero, 72 at depth one, and graph 308 at depth two. Together with the 18 point reductions, this gives 487 behavior proofs replayable without search. The other 33 recorded divergent cases still lack a bundled witness.
+The current repository has [replayable divergence certificates](certificates/README.md) for **491 of 502** recorded divergent cases: 396 at depth zero, 72 at depth one, and 23 at depth two (22 coaffine witnesses plus graph 308). Together with the 18 point reductions, this gives 509 behavior proofs replayable without search. The other 11 recorded divergent cases still lack a bundled witness.
 
-Four historical divergent claims (150, 252, 270, 472) lack recovered maps even in the previous research ledger. Other positive witnesses were reported replayed in the research sessions, but not all of those witnesses are bundled yet. Do not confuse the ledger with a complete certificate archive.
+Four historical divergent claims (150, 252, 270, 472) originally lacked recovered maps. Fresh proofs now establish 252, 270 and 472; only 150 remains historical-only. The 11 recorded divergent cases without bundled witnesses are 100, 135, 150, 189, 241, 253, 419, 430, 432, 437 and 450. See [the bounded stage-two discovery record](research/stage2-discovery-20261126.json). Do not confuse the ledger with a complete certificate archive.
 
 ## Quick checks
 
