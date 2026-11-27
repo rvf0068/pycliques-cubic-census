@@ -16,7 +16,7 @@ def fold_active_ids(graph):
     while remaining:
         move = next(
             ((v, w) for v in sorted(remaining) for w in sorted(graph[v])
-             if closed[v] <= closed[w]),
+             if w in remaining and closed[v] <= closed[w]),
             None,
         )
         if move is None:
