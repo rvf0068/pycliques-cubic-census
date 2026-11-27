@@ -1,0 +1,32 @@
+name: Stage-two incidence rediscovery
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/stage2-incidence]
+permissions:
+  contents: read
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        ids:
+          - "100 135 150"
+          - "189 241 253"
+          - "419 430 432"
+          - "437 450"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: rvf0068/pycliques-project
+          ref: e1e9ed04f5c1f962a5f7e70312fb8df16e5a6a78
+          path: monorepo
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install ./monorepo/packages/pycliques
+      - run: sudo apt-get update -qq && sudo apt-get install -y libz3-4
+      - run: python scripts/discover_stage2_incidence.py --seconds 60 --steps 250000 --states 1000000 ${{ matrix.ids }}

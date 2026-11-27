@@ -65,8 +65,35 @@ def verify_expansive(g, certificate):
         assert a.isdisjoint(b)
         assert all(g.has_edge(u, v) for u in a for v in b)
     assert len(factors) >= 3 or any(nx.is_connected(g.subgraph(a)) for a in factors)
+
+    octahedral_dimension = None
+    if certificate.get("target_type") == "octahedral":
+        # f^2 is the retraction onto the stable image O_d; f acts there
+        # as the antipodal involution.
+        assert len(stable) >= 6 and len(stable) % 2 == 0
+        pairs, seen = [], set()
+        for v in sorted(stable):
+            if v in seen:
+                continue
+            w = f[v]
+            assert w in stable and w != v and f[w] == v
+            assert not g.has_edge(v, w)
+            pairs.append((v, w))
+            seen.update((v, w))
+        assert seen == stable and len(pairs) * 2 == len(stable)
+        for (a, b), (c, d) in itertools.combinations(pairs, 2):
+            assert all(g.has_edge(u, v) for u in (a, b) for v in (c, d))
+        projection2 = {v: f[f[v]] for v in g}
+        weak_morphism(g, projection2)
+        assert set(projection2.values()) == stable
+        assert all(projection2[v] == v for v in stable)
+        octahedral_dimension = len(pairs)
+        if "octahedral_dimension" in certificate:
+            assert certificate["octahedral_dimension"] == octahedral_dimension
+
     return {"stable_order": len(stable), "idempotent_exponent": exponent,
-            "factor_orders": [len(a) for a in factors]}
+            "factor_orders": [len(a) for a in factors],
+            "octahedral_dimension": octahedral_dimension}
 
 
 def negative_controls():
@@ -116,18 +143,33 @@ def main():
             # This bundle contains only rediscovered cases, excluding the
             # independently verified cut certificate 308.
             expected.remove("308")
-            report_path = ROOT / "research/stage2-discovery-20261126.json"
-            report = json.loads(report_path.read_text())
-            assert report["completed"] and set(report["attempts"]) == expected
-            assert all(a["status"] in {"FOUND", "NOT_REDISCOVERED"}
-                       for a in report["attempts"].values())
-            found = {i for i, a in report["attempts"].items()
-                     if a["status"] == "FOUND"}
-            assert set(certs) == found
-            assert report["found"] == len(found)
-            assert report["not_rediscovered"] == len(expected - found)
-            assert all(cert["method"] == report["attempts"][i]["method"]
-                       for i, cert in certs.items())
+            base_report = json.loads(
+                (ROOT / "research/stage2-discovery-20261126.json").read_text())
+            assert base_report["completed"] and set(base_report["attempts"]) == expected
+            first_found = {i for i, a in base_report["attempts"].items()
+                           if a["status"] == "FOUND"}
+            assert len(first_found) == base_report["found"] == 22
+            followup_ids = expected - first_found
+            followup = json.loads(
+                (ROOT / "certificates/coaffine_order14_stage2_followup.json").read_text())
+            assert followup["schema"] == 1
+            assert set(followup["certificates"]) == followup_ids
+            certs.update(followup["certificates"])
+            deep_report = json.loads(
+                (ROOT / "research/stage2-discovery-deep-20261127.json").read_text())
+            incidence_report = json.loads(
+                (ROOT / "research/stage2-incidence-20261127.json").read_text())
+            assert set(deep_report["attempts"]) == followup_ids
+            assert set(incidence_report["attempts"]) == followup_ids
+            found_methods = {}
+            for report in (base_report, deep_report, incidence_report):
+                for identifier, attempt in report["attempts"].items():
+                    assert attempt["status"] in {"FOUND", "NOT_REDISCOVERED"}
+                    if attempt["status"] == "FOUND":
+                        found_methods.setdefault(identifier, set()).add(attempt["method"])
+            found = set(found_methods)
+            assert found == expected and set(certs) == found
+            assert all(cert["method"] in found_methods[i] for i, cert in certs.items())
         else:
             assert set(certs) == expected
         for i, cert in certs.items():
@@ -137,17 +179,18 @@ def main():
                 g = pared_step(g)
             verified[i] = {"stage": stage, **verify_expansive(g, cert)}
         print(f"Stage {stage}: {len(certs)} expansive coaffine certificates verified")
-    assert len(verified) == 468 + len(found)
-    # The separate validate_census.py checks the point reductions and 308.
+    assert len(verified) == 501
+    # The separate validate_census.py checks the 18 point reductions and 308.
     not_in_bundles = sorted(i for i, row in ledger.items()
                             if row["status"] == "DIVERGENT" and i not in verified)
-    assert "308" in not_in_bundles
+    assert not_in_bundles == ["308"]
     missing = [i for i in not_in_bundles if i != "308"]
     historical_missing = [i for i in missing if
                           ledger[i]["source"] == "earlier_archived_certificate_not_replayed"]
-    print(f"{len(verified)} divergence witnesses independently replayed")
-    print(f"Recorded divergence verdicts without bundled witnesses: {len(missing)}")
-    print("Historical-only remaining:", ", ".join(historical_missing))
+    assert not missing and not historical_missing
+    print("501 coaffine divergence witnesses independently replayed")
+    print("Plus graph 308's cut retraction: all 502 divergent cases certified")
+    print("All 18 clique-null point reductions are replayed by validate_census.py")
     if args.report:
         args.report.write_text(json.dumps(
             {"verified_coaffine": verified,
