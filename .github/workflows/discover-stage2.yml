@@ -1,0 +1,28 @@
+name: Stage-two discovery
+on:
+  push:
+    branches: [research/stage2-discovery]
+permissions:
+  contents: read
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        ids: ["47 419 379","157 164 183","300 373 393","402 404 409","418 420 440","100 132 135","189 240 241","253 422 426","427 430 432","437 450 150","252 270 472"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: rvf0068/pycliques-project
+          ref: e1e9ed04f5c1f962a5f7e70312fb8df16e5a6a78
+          path: monorepo
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install ./monorepo/packages/pycliques
+      - run: sudo apt-get update -qq && sudo apt-get install -y libz3-4
+      - run: python -m pycliques.octahedral_coaffine_native --build
+      - run: python scripts/discover_stage2.py --seconds 5 ${{ matrix.ids }}
