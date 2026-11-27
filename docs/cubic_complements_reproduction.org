@@ -1,0 +1,867 @@
+#+TITLE: Cubic complements: graph-by-graph reproduction workbook
+#+SUBTITLE: Clique behavior, homotopy types, and certificate checks using pycliques and pycombtop
+#+DATE: 2026-11-26
+#+LANGUAGE: en
+#+OPTIONS: toc:3 num:t ^:{}
+#+STARTUP: show2levels
+#+PROPERTY: header-args:jupyter-python :session cubic-census :kernel python3 :results output :exports both :tangle cubic_complements_workbook.py :comments no
+
+* Scope and evidence
+
+This workbook accompanies =cubic_complements_survey.tex=. It is an executable research guide, not a claim that the entire census has been rerun using today's packages. It contains the recovered order-14 ledger for *every one of the 540 inputs*, including the recorded wedge decompositions of both \(\Delta(G)\) and \(\Delta(K(G))\), the behavior, depth and historical certificate method. The table below is embedded; no external CSV is needed for these expectations.
+
+Of the 540, 509 are complements of connected cubic graphs and 31 are complements of disconnected cubic graphs. There are 502 recorded divergent, 18 clique-null, 20 unresolved. Four divergent verdicts (150, 252, 270, 472) were carried forward from older reports, but their maps have not been recovered in the reconstructed ledger. Treat them as *historical only* until a new witness is found or the old certificate is recovered. The other 498 were recorded with replayed positive witnesses. This workbook does not turn archived claims into fresh production-package results merely by reading the ledger.
+
+All 540 first-level homotopy pairs were reported as exact wedges (19 equal, 521 different). A dictionary of dimension:multiplicity denotes a wedge; the empty dictionary denotes a point. Neither Betti-number equality nor a timeout is an exact homotopy certificate. Some hard topology cases were resolved with archived research prototypes, and several stage-two behavior proofs used specialized local search heuristics not yet fully integrated into the public APIs. The package-only route below provides a principled fresh search and verifies positive results; it is not a guarantee of success at the specified budgets. Every row gets its own route, expected result and output status. In particular there is no assertion that =find_coaffine_endomorphism= alone certifies divergence.
+
+The source reviewed for this workbook is the current default branch of [[https://github.com/rvf0068/pycliques-project][pycliques-project]], including search results pinned to commit =e1e9ed04f5c1f962a5f7e70312fb8df16e5a6a78=. Files examined include [[https://github.com/rvf0068/pycliques-project/blob/main/docs/general_retraction_and_implicit_cliques.md][general retraction and implicit cliques]], [[https://github.com/rvf0068/pycliques-project/blob/main/docs/clique_behavior.md][clique behavior]], =coaffine_endomorphisms.py=, =octahedral_incidence.py=, =clique_sequence.py=, and =homotopy_type.py=. The packages were not installed in the survey runtime, so the full package run must be performed in your own monorepo environment. I did independently replay the cut certificate of 308 with NetworkX, and check the census transcription and the standalone verification routines as described below. No PR or change to the monorepo is made.
+
+References: Rafael Villarroel-Flores, [[https://doi.org/10.1016/j.disc.2022.113230][On the clique behavior and Hellyness of the complements of regular graphs]], Discrete Mathematics 346 (2023), 113230; the LAGOS 2023 draft /The Clique Behavior of the Complement of Cubic Graphs/; Larrión, Neumann-Lara and Pizaña, [[https://doi.org/10.1016/j.ejc.2008.05.005][On expansive graphs]], EJC 30 (2009), 372--379, Theorems 2.4, 3.6 and 4.6; Frías-Armenta, Neumann-Lara and Pizaña, /Dismantlings and iterated clique graphs/, DM 282 (2004), 263--265. The data are from [[https://houseofgraphs.org/Cubic][House of Graphs]].
+
+* Setup and input reconstruction
+
+From the monorepo checkout:
+
+#+begin_src sh :tangle no
+uv sync --all-packages
+uv run python -m pycliques.octahedral_coaffine_native --build
+uv run python -c 'import pycliques as pc; print(pc.build_incidence_native())'
+git rev-parse HEAD
+#+end_src
+
+Run Emacs from the workspace with =uv run emacs=, or select the workspace Python kernel in Emacs-Jupyter. These blocks use a shared session. Evaluate the definition blocks before running the experiments. On Linux the SAT backend additionally needs the optional Z3 shared library described in the monorepo documentation. A native build failure does not invalidate saved certificates; the pure-Python backend can be used for small hosts. To run noninteractively, tangle the file and import it from the workspace interpreter; the driver block at the end is deliberately not tangled. All outputs are local. Set the output directory as desired.
+
+#+begin_src jupyter-python
+import csv
+import hashlib
+import itertools as it
+import json
+import math
+import os
+import random
+import time
+from collections import Counter
+from pathlib import Path
+from importlib.resources import files
+import networkx as nx
+import pycliques as pc
+import pycombtop as pt
+from pyg6data import list_cubic_graphs
+
+OUT = Path.home() / 'cubic-complement-replay-20261126'
+OUT.mkdir(exist_ok=True)
+
+# A fixed data file, not a fresh nauty numbering. Git blob hashes include
+# the git object header; check before interpreting historical indices.
+raw14 = files('pyg6data.data').joinpath('cub14.g6').read_bytes()
+blob14 = hashlib.sha1(f'blob {len(raw14)}\0'.encode() + raw14).hexdigest()
+assert blob14 == '0a2e0fb60b4fc9414b7b195fc53b771ebbc031f1', blob14
+C14 = list_cubic_graphs(14)
+assert len(C14) == 509
+assert all(len(c) == 14 and nx.is_connected(c) and
+           set(dict(c.degree()).values()) == {3} for c in C14)
+assert all(nx.to_graph6_bytes(g, header=False).strip() == s
+           for g, s in zip(C14, raw14.splitlines(), strict=True))
+
+# The order-six labeling convention is historical: 1 = K3,3; 2 = prism.
+# In particular, do not use C6 itself (a degree-two graph).
+C4 = [nx.complete_graph(4)]
+C6 = [nx.complete_bipartite_graph(3, 3), nx.circular_ladder_graph(3)]
+C8, C10, C12 = (list_cubic_graphs(n) for n in (8, 10, 12))
+assert list(map(len, (C4, C6, C8, C10, C12))) == [1, 2, 5, 19, 85]
+
+def catalog(n):
+    if n == 4:
+        return {'1': C4[0]}
+    if n == 6:
+        return {str(i): c for i, c in enumerate(C6, 1)}
+    if n == 8:
+        return {**{str(i): c for i, c in enumerate(C8, 1)},
+                '4+4': nx.disjoint_union_all(C4 * 2)}
+    if n == 10:
+        return {**{str(i): c for i, c in enumerate(C10, 1)},
+                **{f'4+6:{i}': nx.disjoint_union(C4[0], c)
+                   for i, c in enumerate(C6, 1)}}
+    if n == 12:
+        return {**{str(i): c for i, c in enumerate(C12, 1)},
+                **{f'4+8:{i}': nx.disjoint_union(C4[0], c)
+                   for i, c in enumerate(C8, 1)},
+                **{f'6+6:{i}:{j}': nx.disjoint_union(C6[i-1], C6[j-1])
+                   for i in (1, 2) for j in range(i, 3)},
+                '4+4+4': nx.disjoint_union_all(C4 * 3)}
+    if n == 14:
+        return {**{str(i): c for i, c in enumerate(C14, 1)},
+                **{f'4+10:{i}': nx.disjoint_union(C4[0], c)
+                   for i, c in enumerate(C10, 1)},
+                **{f'6+8:{i}:{j}': nx.disjoint_union(c, d)
+                   for i, c in enumerate(C6, 1)
+                   for j, d in enumerate(C8, 1)},
+                **{f'4+4+6:{i}': nx.disjoint_union_all([*C4, *C4, c])
+                   for i, c in enumerate(C6, 1)}}
+    raise ValueError(n)
+
+assert [len(catalog(n)) for n in (4, 6, 8, 10, 12, 14)] == [1, 2, 6, 21, 94, 540]
+CUBIC = catalog(14)
+G14 = {i: nx.complement(c) for i, c in CUBIC.items()}
+assert all(set(dict(g.degree()).values()) == {10} for g in G14.values())
+print('data blob', blob14, 'graphs', len(G14))
+#+end_src
+
+The 2023 draft reports 1, 2, 6, 4 convergent and 0, 0, 0, 17 divergent cases respectively at orders 4, 6, 8, 10. At order 12 it reports 80 divergent, one convergent (the complement of \(K_{3,3}\sqcup K_{3,3}\)), and 13 unresolved; the later research narrowed the remaining set to two, but I could not recover a complete per-ID updated order-12 ledger. Use the small-order driver below to regenerate the classification rather than attributing guessed IDs to the later proofs. A documented implicit order-12 example is the cubic graph6 =KsX@?oS@_D?J=, with second pared iterate of order 64, 80,909 third-level cliques and an implicit pared core of order 76,787 (4,122 folds), from =docs/general_retraction_and_implicit_cliques.md=. The two original contractible-but-first-iterate-spherical examples are connected 12-vertex IDs 48 and 81; graph6 =K{O_ogG@GC_L= and =KsX@?gQA?H_Y=. These should not be confused with the two remaining behavior cases without additional evidence.
+
+* Complete order-14 ledger, embedded
+
+The following compact data reproduce the archived =updated_behavior_ledger.csv= and =cubic14_complete_homotopy_transitions.csv= by joining on ID, *not* row number for disconnected cases. Each token has the form =G/KG/HB=, where the two wedge profiles use =dimension:multiplicity= (omit =:1=), =-= denotes the point, and the two hexadecimal digits are source codes. Connected rows give the starting ID and then successive tokens. Disconnected rows give the explicit historical identifier. The code derives the individual 540-row table, checks the group counts and writes an expanded local CSV. The source labels are preserved verbatim.
+
+#+begin_src jupyter-python
+HOMO_SOURCE = [
+    'production_post58', 'production_post63_SQ2', 'octahedral_integral',
+    'post64_SQ2', 'spherical_generation', 'production_post63_INTEGRAL_MORSE',
+    'previous_symbolic_sq2', 'consecutive_integral_retry', 'prototype_consecutive',
+    'symbolic_sq2_negative_control', 'post64_SPHERICAL_ORBIT',
+    'post64_CONSECUTIVE', 'post64_DONG',
+]
+BEHAVIOR_SOURCE = [
+    ('DIVERGENT', 0, 'original_screen'),
+    ('CONVERGENT', 1, 'verified_paring_to_point'),
+    ('DIVERGENT', 1, 'first_screen'),
+    ('DIVERGENT', 2, 'sat_antipodal_csp'),
+    ('CONVERGENT', 2, 'verified_paring_to_point'),
+    ('UNRESOLVED', None, 'unresolved_in_ledger'),
+    ('DIVERGENT', 2, 'joint_antipodal_csp'),
+    ('DIVERGENT', 2, 'earlier_archived_certificate_not_replayed'),
+    ('DIVERGENT', 2, 'second_screen'),
+    ('DIVERGENT', 2, 'prior_replay'),
+    ('DIVERGENT', 2, 'random_relabel_second_iterate'),
+    ('DIVERGENT', 2, 'incidence_dominating_restart'),
+    ('DIVERGENT', 2, 'pair_first_antipodal_csp'),
+]
+CONNECTED_LEDGER = '''
+1: 2:2,3/3:4,4:4,7/00 3:2/5:13,6:2,7/10 3/5:7/00 3:2/4:10,7:4/20 2:2/3:2/00 2:2,3/3:4,7/00 2,3:2/4:7,7:16/20 3/7/00 2,3/4:3,7/00 2/3/00 3:2/7:4/00 2,3:3/4:21,7:49/20 2,3/4:5,7/20 2,3/3,4:2,5:3/00 3:3/5:11,7:4/10 2,3/4:3,7/00 3:4/5:17,6:2,7:49/10 3:2/5:3,7/10 3/5:5/00 3:12/5:25,6:196,7:217/30
+21: 3:6/5:18,6:8,7:4/10 3:10/5:7,6:14,7:249/30 3:2/4:15,5:3/00 3:4/5:35,6:4,7/10 3:2/4:2,5:8/00 3:4/5:6,6:4,7:4/10 -/-/01 3:6/5:30,6:7,7/10 3:8/5:37,6:41,7:34/40 3:6/5,6:2,7:33/10 3:4/5:17,6:2,7/10 3:2/5:8/02 3:6/5:12,6:4,7:20/10 3:8/5:101,6:60,7:49/30 3:4/5:33,6:2,7/10 3:2/4:4,5:6/02 3:6/5:6,6:10,7:20/10 3:4/5:13,6:2,7/10 3:8/5:5,6:82,7:49/40 3:4/5:11,6:10,7/10
+41: 3:2/5:11,6/02 3:3/4,5:4/00 3:4/4,5:3,7:4/20 2:2/3,4:3/00 3:4/5:12,6,7/10 3:6/5:15,7:39/10 2/4:3/03 3:4/5:38,6:2/50 3:6/5:30,6:6,7:34/60 3:4/5:14,7:16/10 3:2/5:14/02 3/5:9/02 3:4/4,5:32,7/20 3:4/5:3,7:17/10 3:5/5:24,7:17/10 3:3/5:18,7/10 -/-/04 3:2/5:10/00 3:6/5:20,6:8,7:16/10 3:7/6:7,7:34/50
+61: 3:2/5:12/02 3:7/5:17,6:4,7:18/10 3:4/5:16,6,7/10 3:5/5:14,6:3/50 3:7/5:3,6:12,7:32/40 3:3/5:11/00 3:8/5:25,7:181/30 3:5/5:13,7:52/10 3:3/5:5,7:2/10 3:5/5:17,7:20/10 3/4:2,5:7/00 3:7/5:23,7:108/40 2/3/02 3:4/5:30,6:2/50 3:9/5:14,6:14,7:157/30 3:3/5:3,7:2/10 3:7/5:9,6:30,7:12/10 3:8/5:6,6:5,7:91/40 3:6/5:42,6:8,7:4/10 3:3/5:3,7:2/10
+81: 3:8/5:31,6:9,7:38/40 3:4/5:25,6:3/00 3:4/5:9,7:17/10 3:4/5:16,6,7/10 -/-/04 2,3/4:9,7/20 3/5:8,7/10 2/4:7/02 3/5:15/00 2,3:2/4:3,7:16/00 3:3/5:11,7:2/10 3:3/5:9,7:2/10 3:5/5:14,6:2,7:17/10 2/4:3/05 3:3/5:7,7:2/10 3:3/5:3,7:2/00 3:4/5:55,7/10 3:4/5:15,6:2,7/10 3:4/5:35,7/10 2/4:3/06
+101: 3:2/5:10/02 3:2/5:14/00 3:2/5:20/00 3:2/5:12/00 3/4:4,7/00 3:4/5:20,7:16/10 3:3/5:5,7:2/00 3:2/5:16/02 3:6/5:30,6:6,7:2/10 3:4/5:16,6,7/10 3:4/5:2,6,7:17/10 3:2/5:3,7/00 -/5:2/02 2:2,3/3:4,7/00 3:4/5:21,7/10 3:4/5:8,7:16/10 3:2/5:10/00 3:3/5:8,7/10 3:3/5:8,6:6,7/10 3:7/4,5:79,7:3/20
+121: 3:3/4,5:5,7/20 3:7/5:15,6,7:33/40 3:7/7:65/00 3:3/5:7/00 3:5/5:9,6:4,7:12/10 3/4:7/02 3/5:2/05 3:2/5:8/00 -/-/04 3:3/5:2,7:2/10 3:2/5:6/00 3/5/03 3:3/5:7,7/10 3:2/5:8/00 3/4/03 3:3/5:8,7/10 3:2/5:2/00 3:4/5:3,6:7/50 3:2/5:4/02 3/4,5:2/02
+141: 3:8/7:104/00 3:2/5:2/00 3:4/6:2,7:12/50 -/-/04 3:5/5:4,6:2,7:13/10 3:3/5:11,7:4/10 3:2/4:2,5:6/00 3:3/5:3,7:4/10 3:4/5:6,7:6/10 3/4/07 3:5/5:8,7:13/10 3:3/5,7:4/00 3:2/5:8/00 3:7/6:19,7:108/70 3:3/5:5,7:4/10 -/-/04 2/4/08 -/-/04 3:4/6:4,7:8/50 3:3/5:3,7:4/10
+161: 3:2/5:4,7/10 3/5:3/00 3:3/5:8,7:2/10 3/5/09 3:2/5:5,7/10 3:2/5:3,7/10 3:3/7:3/00 3:2/5:2,7/10 -/-/04 3:3/5:13/00 3:5/6:4,7:9/50 3:2/5:3,7/00 3:5/5:10,7:6/10 3:3/5:4,7/10 3:5/5:9,6,7:8/10 3:2/5:6/00 3:5/5,6:2,7:20/10 3:6/6:3,7:53/80 3:3/5:2,7:2/20 3:4/5:2,7:4/20
+181: 3/5:3/02 -/-/05 2/3/0a 3:4/5:11,7:2/20 3/5/05 3:3/5:15/00 3:4/5:5,7:3/20 3:3/5:21/00 3/-/06 3:4/5:12,7:2/20 3:2/5:4/00 3:2/5:6/00 -/5/02 3/7/00 3/5:7/00 2,3/4,7/00 3/5:11/02 3:2/5:9,7:2/20 3/5:4,7/00 3:3/5:4,7:2/20
+201: 3:2/5:8,7/20 3:3/5:7,7/20 3:2/5:5/02 -/5:2/02 3:2/5:10,6/02 3/5/05 3:2/5:7,7/20 3:4/5:2,7:17/20 3:3/5:10,6,7/20 -/5/02 3:2/5:4,7/20 3:2/6,7/00 3:3/5:5,7:2/20 3:2/5,7/00 3/4:2,7/00 -/4,5:2/02 3:3/5:2,7:18/20 3:3/5:8,7:2/20 3/5:2/02 3:2/5:5,7/00
+221: 3:4/5:14,7:2/20 3:3/5:5,7/20 3:3/5:2,7:2/20 3:3/5:2,7:2/20 3:2/5:2,7/20 3:2/5:9/00 3:3/5:10,7/20 3/5:2/02 3:2/5,7/00 3:2/5:3,7/00 3/5:7/02 3/7/00 3:4/5:14,7:2/20 3/5:7/02 3:3/5:4,7:2/20 3:3/5:4,7:2/20 3:2/5:11/00 3:2/5:3,7/20 3:2/5:4,7/00 3/5/03
+241: 3/5/03 3:3/7:3/00 3:5/6:3,7:18/80 3:5/5:17,7:4/20 3:3/5:3,7:2/20 3:2/5:10/00 3:2/5:3,7/00 3:2/5,7/00 3:4/5:11,7:3/40 3:4/5:11,7:3/40 3:4/6,7:5/70 3/4/07 3/5/03 2/3/00 3:6/5:10,6:7,7:5/40 3:6/5:7,6:8,7:49/40 3:5/5:6,6:2,7:9/40 3:3/5:15/02 3:3/5:13/00 3:5/5:21,7:8/40
+261: 3/5:5/02 3:3/5:4,7/00 3:2/5:8/02 3:2/5:3/02 3:6/6:4,7:18/70 3:4/5:2,6,7:3/40 3:7/6:7,7:62/70 3:3/5:11,7/40 3:3/5:5,6,7:16/00 3/5/07 3:2/5:9/00 3:2/5:2,7/00 3/7/00 3:4/5:12,7/40 3:5/5:2,6:11,7:2/40 3:6/5:4,6:14,7:6/40 3:2/5:13/02 3:4/5,6,7:2/40 3:4/5,6,7:16/40 3:4/5:2,6:2,7:3/40
+281: 3:3/5:4,7/40 3:2/5:10/00 3/5/05 3:4/5:3,6:2,7:3/40 3:2/5:6/00 3:4/5:2,7:2/00 3/5:3/05 3:5/5,7:4/40 3:5/6:9,7:18/70 3:3/5:2,6,7:2/40 3:3/7:3/00 3/4:3,5/02 3:8/5:4,6:28,7:14/40 3:8/5,6:12,7:121/30 3:3/5:12,7/40 3:4/5:10,7:2/40 3:4/5:8,6:2/70 3:3/5:5,6:3/00 3:2/5:7/00 -/-/08
+301: 3:6/5:4,6:22,7:2/40 3:2/5:5/02 3:4/5:2,6:8,7/40 3:5/5:3,6,7:17/40 3:5/5:2,6:3,7:17/40 3:6/6:13,7:20/70 3:3/5:8/02 3/4/0b 3:2/5:6/00 3:4/5:2,6:13,7:2/40 3:2/5:2/00 3:3/5:10,6,7/40 3:5/6:4,7:4/70 3:6/5:2,6:4,7:5/40 3:3/4,5:10,7:2/40 3:3/5:4,7:2/40 3:2/5:10/02 3:4/5,7:3/40 3/5:3/02 3/5:3/05
+321: 3:4/5:3,7:3/40 3:6/6:4,7:53/70 3/4,5/02 3:3/5,6,7:2/40 3:5/5:10,7:3/40 3:2/5:7/00 3:4/5:12,7/40 3:4/5:4,6:3,7:4/40 3:3/5:3,7:2/00 3:4/5,7:3/40 3:2/5:7/00 3:5/5:15,7:3/40 3:2/5:3,7/00 3:4/5:5,7:3/40 3:3/5:10,7/40 3:3/5:4,6,7:2/40 3:4/5,7:3/40 3:5/6:2,7:19/00 3:3/5:5,7/40 3:4/5:5,6:2,7/40
+341: 3:7/6:17,7:54/70 3:5/6:2,7:22/70 3:4/5:8,7:2/40 3/5/05 3:3/5:9,7/40 3:3/5:19/02 3:2/5:7,7/40 3/4,5:4/02 3:2/5:6/00 3:4/5:2,6:3,7:2/40 3:3/5:8,7/40 3:2/5:5,7/40 3:5/5:9,7:24/40 3:4/6:3,7:6/70 3:3/5,7:2/40 -/5/02 3:4/5:8,7:3/40 3:2/5:2,7/00 3:3/5:3,7:2/40 3:3/5:3,7:4/40
+361: 3:3/5:23/00 3:3/5:7,6:4/00 3/4,5:2/05 3/4,5:2/02 3:4/5:12,7:2/40 3:3/5:9,7/40 3:6/5:10,7:6/40 3/5:7/05 3:2/5:12/00 3:6/5:15,6:2,7:115/40 3:4/5:5,7:49/40 3:4/5:7,7:49/40 2/4:2/08 2/3/00 3:3/5:7/00 3:2/5:6/00 3:3/5:2,7/00 3:2/5:7/00 -/5/09 3:3/5:18/00
+381: 3/5:7/02 3:5/5:3,6:4,7:4/40 3:4/5:18,6:6/00 3:2/5:5/02 3:4/5:4,7:2/40 3:3/5:10,7/40 3:3/5:4,7:2/40 3:4/5:6,7:2/40 3:4/6:4,7:3/70 3:2/5:3,7/00 3:2/5:3,7/00 3:2/5:2,7/00 2/4,5:2/08 3/5:3/02 3/5:9/02 3:2/5:10/00 3:3/6:6,7:2/00 3:3/5:2,7:18/40 3:3/6:4,7:18/70 -/-/01
+401: 2:2/3:2/00 2/4/08 2/3/02 3/5/08 -/-/01 -/-/01 2/3/00 -/-/04 3/-/08 3/4:2/02 2,3/3/00 2/3/00 2,3/4,7/00 3:2/5,7/00 -/-/04 -/-/01 -/-/04 3/5/08 3/5/03 2/4/08
+421: 3/-/04 3/4/0c 3:2/5:3/00 3/5/02 3:2/5:8/02 3/5/06 2/4/0a 3/5:3/02 3/5:4/02 3/5/03 3:2/5,7/00 2/4/06 3/5:3/02 3/5/02 3/5:2/02 3/5/00 3/5/03 2/3/00 3:2/5,6,7/00 3/4/09
+441: 3/5/05 3/5/05 3:3/5:3/00 3:2/5:4/00 3:2/5:4/00 3:2/5:2/00 3:2/5:6/00 -/-/04 3:2/4,7/00 3/5/03 3/5/05 3:2/5,7/00 3:4/7:5/00 3:2/5:3,7/00 3:2/5,7/00 3:2/5:5,7/00 2,3/4,7/00 3:2/5:4,7/40 3/5:3,6:2/02 3:3/5:4,7:2/40
+461: 3/5:3/02 3/5:2/05 3:2/5:4/02 3/4,5:2/02 3:3/5:3/00 3:2/5:3/00 3:3/5:3,7/00 3:3/5:2,7:2/00 3:3/7:2/00 3:2/5:2/00 3:2/5:8/02 3/5/07 3/5/05 3:2/5:8/02 3/5:4/02 3:2/5,7/00 3:2/5:2,7/00 3/4,6/02 3/5:3/02 3:3/5,7:4/40
+481: 3:2/6,7/00 -/-/04 3:2/5:3/02 3:2/5,6,7/00 3/5:3/02 3:2/5,7/00 3:4/6:2,7:3/00 3:3/5:8,7:2/40 3:2/4,5:9/00 3/7/00 3:2/6,7/00 3:3/5,7/40 3:2/7:2/00 3:3/7:3/00 -/4:2,5:7/02 3:2/5:3,7/40 3:2/6:2/05 3:4/5:10,6:2,7:2/40 3:3/7:3/00 3:3/6:2,7/00
+501: 3:3/6:3,7:2/70 3:3/7:4/00 3:4/5:2,6:2,7:2/40 3:2/5:2,7:2/40 3:2/6:5/02 3:4/6:8/05 3/5:2,6/02 3/6/05 3:6/5:36/05
+'''
+DISCONNECTED_LEDGER = '''
+4+10:1 2:3,3:3/3:9,4:12,7:81/40
+4+10:2 3:12/5:175,6:238,7:81/30
+4+10:3 3:6/4:3,5:62,6:5/90
+4+10:4 3:9/4:3,5:42,7:174/a0
+4+10:5 2:3/3:3,4:18/00
+4+10:6 3:6/5:39,7:81/40
+4+10:7 3:3/4:3,5:30/02
+4+10:8 -/5:12/02
+4+10:9 3:9/5:53,6:44/b0
+4+10:10 3:12/5:27,7:243/30
+4+10:11 3:3/4:3,5:30/02
+4+10:12 3:12/5:48,6:18,7:162/30
+4+10:13 3:6/5:71,6:5/70
+4+10:14 2:3,3:3/3:9,7:81/00
+4+10:15 2:3/3:3,4:6/00
+4+10:16 3:3/5:51/02
+4+10:17 3:3/4:9/00
+4+10:18 3:6/5:27,7:81/40
+4+10:19 3:12/7:405/00
+6+8:1:1 2:5/3:15/00
+6+8:1:2 2:3/3:5/00
+6+8:1:3 2:2/3:4/00
+6+8:1:4 2:3/3:3/00
+6+8:1:5 2/3:3/00
+6+8:2:1 3:5/5:77/00
+6+8:2:2 3:3/5:27/00
+6+8:2:3 3:2/5:14/00
+6+8:2:4 3:3/5:3/00
+6+8:2:5 3/4,5:2/70
+4+4+6:1 2:9/3:63/00
+4+4+6:2 3:9/5:585/c0
+'''
+
+def profile(s):
+    if s == '-':
+        return {}
+    return {int(t.split(':')[0]): int(t.split(':')[1]) if ':' in t else 1
+            for t in s.split(',')}
+
+def decode(identifier, token):
+    a, b, codes = token.split('/')
+    h, k = (int(c, 16) for c in codes)
+    status, stage, source = BEHAVIOR_SOURCE[k]
+    return dict(id=identifier, G=profile(a), KG=profile(b),
+                homotopy_source=HOMO_SOURCE[h], status=status,
+                stage=stage, behavior_source=source, historical_only=k == 7)
+
+def load_ledger():
+    rows = {}
+    for line in CONNECTED_LEDGER.strip().splitlines():
+        start, *tokens = line.split()
+        start = int(start[:-1])
+        assert len(tokens) == min(20, 510 - start)
+        for j, token in enumerate(tokens, start):
+            assert str(j) not in rows
+            rows[str(j)] = decode(str(j), token)
+    for line in DISCONNECTED_LEDGER.strip().splitlines():
+        identifier, token = line.split()
+        assert identifier not in rows
+        rows[identifier] = decode(identifier, token)
+    return rows
+
+LEDGER = load_ledger()
+assert set(LEDGER) == set(CUBIC)
+assert Counter(r['status'] for r in LEDGER.values()) == {
+    'DIVERGENT': 502, 'CONVERGENT': 18, 'UNRESOLVED': 20}
+assert Counter(r['stage'] for r in LEDGER.values() if r['status'] == 'DIVERGENT') == {0:396, 1:72, 2:34}
+assert sum(r['G'] == r['KG'] for r in LEDGER.values()) == 19
+assert sum(not r['G'] for r in LEDGER.values()) == 28
+assert sum(not r['KG'] for r in LEDGER.values()) == 22
+assert [i for i,r in LEDGER.items() if r['historical_only']] == ['150','252','270','472']
+OPEN = [i for i,r in LEDGER.items() if r['status']=='UNRESOLVED']
+assert OPEN == '94 127 182 185 206 283 287 320 344 363 368 441 442 451 462 473 497 506 508 509'.split()
+with (OUT/'cubic14_expected.csv').open('w', newline='') as file:
+    cols = list(next(iter(LEDGER.values())))
+    writer = csv.DictWriter(file, fieldnames=cols+['cubic_graph6'])
+    writer.writeheader()
+    for i, row in LEDGER.items():
+        writer.writerow({**row, 'G':json.dumps(row['G']), 'KG':json.dumps(row['KG']),
+                         'cubic_graph6':nx.to_graph6_bytes(CUBIC[i],header=False).decode().strip()})
+print(Counter((r['stage'], r['behavior_source']) for r in LEDGER.values()))
+#+end_src
+
+* Proof primitives for package computations
+
+** Pared iterates and folds
+
+Construct only necessary levels. Bounds apply before paring; failure to construct the next iterate is inconclusive. Use stable integer labels for fresh search, but do not equate those labels with an archived certificate's labels. Each fold must satisfy closed-neighborhood inclusion at the moment of deletion. The actual =CliqueSequence= verifies the clique construction using the package algorithm; the following small replay of the fold list explicitly checks each move. For topology, folds preserve clique-complex homotopy equivalence. For dynamics, the dismantling theorem ensures that a point at some pared level proves clique-nullity.
+
+#+begin_src jupyter-python
+def sequence(G, bound=10_000, max_edges=8_000_000):
+    return pc.CliqueSequence(G, bound=bound, max_edges=max_edges,
+                             pare_initial=True, relabel=True)
+
+def check_fold_list(H, moves):
+    H = H.copy()
+    for v, w in moves:
+        assert v in H and w in H and v != w
+        assert set(H[v]) | {v} <= set(H[w]) | {w}
+        H.remove_node(v)
+    return H
+
+def checked_null(seq, stage):
+    # pc.CliqueSequence provides the raw graph and fold labels in its
+    # deterministic relabeling. Reconstruct independently if necessary.
+    H = seq[stage]
+    return H is not None and len(H) == 1
+
+NULL1 = ['27','400','405','406','416']
+NULL2 = '57 85 129 144 156 158 169 408 415 417 421 448 482'.split()
+assert [i for i,r in LEDGER.items() if r['status']=='CONVERGENT' and r['stage']==1] == NULL1
+assert [i for i,r in LEDGER.items() if r['status']=='CONVERGENT' and r['stage']==2] == NULL2
+
+def replay_null(identifier):
+    stage = LEDGER[identifier]['stage']
+    seq = sequence(G14[identifier])
+    orders = [len(seq[j]) if seq[j] is not None else None for j in range(stage+1)]
+    return dict(id=identifier, stage=stage, orders=orders,
+                verified=checked_null(seq, stage))
+#+end_src
+
+** Stable images of coaffine endomorphisms
+
+A coaffine weak morphism \(f\) sends every vertex outside its closed neighborhood. If the image stabilizes at \(R\), some power of \(f\) is a retraction onto \(R\); \(f|_R\) is an automorphism. The expansive criterion checks an invariant subjoin with either three nonempty factors or two factors with one connected. Equivariance is essential; the fact that an induced graph is divergent is not sufficient. The following adapter uses the package verifier and NetworkX to check the mathematical acceptance predicate used in the historical stage-zero and stage-one research screen. It also recognizes invariant subjoins of a stable image, not only those coming from components of its entire complement. It does not replace the package CSP engine.
+
+#+begin_src jupyter-python
+def stable_image(G, f):
+    assert pc.verify_coaffine_endomorphism(G, f)
+    R = set(G)
+    m = 0
+    while (S := {f[v] for v in R}) != R:
+        R, m = S, m+1
+    # Permutation orbits of the stable image.
+    todo = set(R)
+    orbits = []
+    while todo:
+        v = min(todo)
+        orbit = {v}
+        w = f[v]
+        while w != v:
+            orbit.add(w)
+            w = f[w]
+        orbits.append(orbit)
+        todo -= orbit
+    return R, m, orbits
+
+def expansive_subjoin(G, f):
+    R, m, orbits = stable_image(G, f)
+    J = nx.Graph()
+    J.add_nodes_from(range(len(orbits)))
+    for i, j in it.combinations(J, 2):
+        if all(G.has_edge(u,v) for u in orbits[i] for v in orbits[j]):
+            J.add_edge(i,j)
+    # Three disjoint nonempty invariant summands.
+    for i,j in J.edges:
+        common = set(J[i]) & set(J[j])
+        if common:
+            return [orbits[i], orbits[j], orbits[min(common)]]
+    # One invariant connected component of the union of orbits joined to A.
+    for i in J:
+        B = set().union(*(orbits[j] for j in J[i]))
+        for component in nx.connected_components(G.subgraph(B)):
+            if {f[v] for v in component} == component:
+                return [orbits[i], set(component)]
+    return None
+
+def verify_expansive(G, f):
+    if not pc.verify_coaffine_endomorphism(G, f):
+        return None
+    factors = expansive_subjoin(G, f)
+    if factors is None:
+        return None
+    R,m,orbits = stable_image(G,f)
+    # Idempotent power: at least m, divisible by the cycle lengths.
+    order = math.lcm(*(len(o) for o in orbits))
+    exponent = max(1, (m+order-1)//order)*order
+    projection = {v:v for v in G}
+    power = dict(f)
+    k = exponent
+    while k:
+        if k & 1:
+            projection = {v:power[w] for v,w in projection.items()}
+        power = {v:power[w] for v,w in power.items()}
+        k >>= 1
+    target = G.subgraph(R).copy()
+    assert pc.verify_retraction_witness(G, target,
+              (projection, {v:v for v in target}))
+    assert all({f[v] for v in A} == A for A in factors)
+    assert all(G.has_edge(a,b) for A,B in it.combinations(factors,2)
+               for a in A for b in B)
+    assert len(factors) >= 3 or any(nx.is_connected(G.subgraph(A)) for A in factors)
+    return dict(map=f, stable_image=sorted(R), exponent=exponent,
+                projection=projection, factors=[sorted(A) for A in factors])
+
+# Use the existing engine. Its public generic entry point stops at the
+# first coaffine map, which may fail the expansive acceptance test.
+def expansive_search(G, states=100_000, seconds=30, *, exhaustive_leaf=False):
+    for order in ('label','fiber'):
+        ans = pc.find_coaffine_endomorphism(G, backend='auto',
+                    value_order=order, max_states=states, time_limit=seconds)
+        if ans.endomorphism is not None:
+            proof = verify_expansive(G,ans.endomorphism)
+            if proof is not None:
+                return proof
+    if exhaustive_leaf:
+        # This is a PRIVATE shared production CSP, verified in the current
+        # source. Prefer a future public accept-predicate API if available.
+        # It is slower than the native arbitrary-map search but does not
+        # accept a nonexpansive leaf and stop prematurely.
+        from pycliques.coaffine_endomorphisms import _search_coaffine_python
+        ans = _search_coaffine_python(G, max_states=states,
+                 time_limit=seconds, value_order='fiber',
+                 accept=lambda f: expansive_subjoin(G,f) is not None)
+        if ans.endomorphism is not None:
+            return verify_expansive(G,ans.endomorphism)
+    return None
+
+# Controls. O3: three reciprocal antipodal orbits. O1*C5: two invariant
+# factors, one connected, but it is not necessary to have an O3 retract.
+O3 = nx.complete_multipartite_graph(2,2,2)
+f3 = {v:v^1 for v in O3}
+assert verify_expansive(O3,f3)
+# Use disjoint union then add join edges explicitly, without depending on nx.join.
+Y = nx.disjoint_union(nx.empty_graph(2),nx.cycle_graph(5))
+Y.add_edges_from((a,b) for a in (0,1) for b in range(2,7))
+fY = {0:1,1:0,**{v:2+(v-2+2)%5 for v in range(2,7)}}
+assert verify_expansive(Y,fY)
+#+end_src
+
+The private leaf predicate is optional but important for reproducing the historical expansive screen: it makes a fresh search over maps with the same sufficient acceptance condition. The native historical research variant accepted expansive leaves directly; today's public native coaffine search stops on the first coaffine map, unless specifically searching an octahedral image. Failure of any one of these routes is *not* proof of convergence.
+
+** Octahedral maps, incidence retractions and special octahedra
+
+For \(O_d=\overline{dK_2}\), \(K(O_d)\cong O_{2^{d-1}}\). A retraction onto \(O_d\), \(d\ge3\), proves divergence, and any special octahedron is such a retract. If a special witness has a maximal host transversal \(a_i\), send each external vertex to the mate \(b_i\) of a nonadjacent \(a_i\). The retraction verifier checks this map. For ordinary octahedral searches the result object includes the inclusion and projection; independently verify both rather than trusting the solver status. Stage-two SAT and native results use different heuristics; discovery budgets are not mathematical hypotheses.
+
+#+begin_src jupyter-python
+def check_octahedral_result(host, ans):
+    if ans.status.name != 'FOUND':
+        return None
+    assert ans.dimension >= 3
+    assert ans.retraction is not None and ans.inclusion is not None
+    assert pc.verify_induced_octahedron(host, ans.antipodal_pairs)
+    target = host.subgraph(ans.inclusion.values()).copy()
+    assert pc.verify_retraction_witness(host,target,(ans.retraction,ans.inclusion))
+    assert pc.verify_coaffine_endomorphism(host,ans.endomorphism)
+    assert all(ans.endomorphism[ans.endomorphism[v]] == ans.retraction[v] for v in host)
+    return dict(dimension=ans.dimension, pairs=ans.antipodal_pairs,
+                projection=ans.retraction, inclusion=ans.inclusion,
+                coaffine=ans.endomorphism)
+
+def special_retraction(H):
+    w = pc.find_special_octahedron_witness(H)
+    if w is None:
+        return None
+    assert pc.verify_special_octahedron_witness(H,w)
+    pairs = tuple(zip(w.clique,w.antipodes))
+    V = {v for pair in pairs for v in pair}
+    r = {v:v for v in V}
+    for v in set(H)-V:
+        r[v] = next(b for a,b in pairs if v != a and not H.has_edge(v,a))
+    assert pc.verify_induced_octahedron(H,pairs)
+    assert pc.verify_retraction_witness(H,H.subgraph(V),(r,{v:v for v in V}))
+    return dict(pairs=pairs,projection=r,dimension=len(pairs))
+
+def oct_search(H, *, backend='auto', states=1_000_000, seconds=60):
+    opts = dict(backend=backend, max_states=states, time_limit=seconds)
+    if backend == 'sat':
+        opts.update(sat_max_clauses=4_000_000, sat_memory_limit_mb=2048)
+    else:
+        opts['value_order']='fiber'
+    ans = pc.find_octahedral_retraction_coaffine(H, **opts)
+    return check_octahedral_result(H,ans),ans.status.name
+
+# ImplicitCliqueGraph stores every maximal-clique mask, but no edge list.
+# Use this for P2; do NOT call from_graph(P2) unboundedly for P3.
+def implicit_p2(seq, bound=3000):
+    base = seq[1]
+    if base is None:
+        return None
+    raw = pc.ImplicitCliqueGraph.from_graph(base,max_cliques=bound)
+    if raw is None:
+        return None
+    pared = raw.pare()
+    assert pc.verify_implicit_paring(raw,pared)
+    return pared.core
+
+def incidence_search(seq, *, backend='walk', seed=139, steps=250_000,
+                     states=1_000_000, seconds=60):
+    host = implicit_p2(seq)
+    if host is None:
+        return None,'HOST_LIMIT'
+    exe = pc.build_incidence_native() if backend != 'sat' else None
+    ans = pc.find_octahedral_retraction_incidence(host, backend=backend,
+            executable=exe, seed=seed,max_steps=steps,max_states=states,
+            time_limit=seconds)
+    if ans.status.name != 'FOUND':
+        return None,ans.status.name
+    H = host.to_networkx(max_edges=8_000_000)
+    if H is None:
+        return None,'VERIFICATION_EDGE_LIMIT'
+    return check_octahedral_result(H,ans),ans.status.name
+#+end_src
+
+* Graph-by-graph behavior reproduction
+
+The historical source field specifies the first successful criterion in the recovered ledger. For 396 depth-zero and 72 depth-one records, start with a coaffine expansive stable-image search at exactly that level. For the 18 null records, construct the exact point reduction at its recorded depth. The 34 depth-two positive rows split as follows:
+
+| Historical method | IDs | Package-first route |
+|-------------------+-----+---------------------|
+| SAT antipodal CSP | 47 132 135 240 241 253 419 430 437 450 | SAT octahedral coaffine |
+| Joint antipodal CSP | 100 189 426 432 | native or SAT octahedral; fixed pairs if archived |
+| Second screen | 157 300 373 393 402 404 409 418 420 | expansive stable image |
+| Prior replay | 164 379 440 | native octahedral, then expansive |
+| Random relabel | 183 427 | deterministic relabel portfolio |
+| Incidence restart | 308 | replay masks; incidence walk/SAT |
+| Pair-first CSP | 422 | native/SAT or incidence |
+| Older record only | 150 252 270 472 | fresh witness required; do not mark replayed |
+
+Production regression scripts [[https://github.com/rvf0068/pycliques-project/blob/main/research/replay_cubic14_379.py][379]] and [[https://github.com/rvf0068/pycliques-project/blob/main/research/replay_cubic14_sat.py][47/419]] document blind reproduction with package APIs. The 379 script checks P0,P1,P2 orders 14,34,541, P2 edge count 132098, exact point and S5 topologies, and a native O20 witness. The SAT script tests 47 (P2 order 210) and 419 (order 401) with 120-second solver budgets. The archived session found O13 and O24 respectively (419 also O21); a new witness may have a different dimension. The current production incidence script [[https://github.com/rvf0068/pycliques-project/blob/main/research/replay_cubic14_incidence.py][incidence near cases]] is deliberately bounded; its 441,442,451 outputs are not classifications.
+
+#+begin_src sh :tangle no
+uv run python research/replay_cubic14_379.py
+uv run python research/replay_cubic14_sat.py
+#+end_src
+
+** Graph 308: exact cut replay with current packages
+
+Unlike discovery, this uses the archived masks. Reconstruct the same ground labels using =CliqueSequence= at level one and =ImplicitCliqueGraph= sorted numeric masks at level two. The independently replayed certificate had 577 raw cliques, 571 after paring, 146127 edges, 35 ground atoms. The previous local labels of the P2 support list were different: do not apply the raw cut IDs to a consecutively relabeled =seq[2]=. This block reconstructs the original cut shore conditions, checks the induced matching and builds the retraction itself. It verifies all edges with the package verifier.
+
+#+begin_src jupyter-python
+CUTS308 = [
+    (203,472,3042525992),(36,185,31809470133),(3,503,8588529551),
+    (310,476,8590099078),(54,221,30579359103),(6,177,32094171135),
+    (218,461,12635296767),(12,368,1614692293),(469,319,25748532552),
+    (223,522,8568596349),(222,500,8589737845),(224,507,8589436797),
+    (200,474,3021685512),(49,571,608172352),(31,176,17041795),
+    (118,345,1879705549),(132,339,1629227909),(244,516,6084504901),
+    (72,398,8587315199),(25,506,4228790),(321,487,11364334522),
+    (316,488,11360271338),
+]
+
+def replay_308():
+    G = G14['308']
+    assert nx.to_graph6_bytes(CUBIC['308'],header=False).strip() == b'M{O_o_G@_G_K?W?B_'
+    seq = sequence(G)
+    base = seq[1]
+    assert base is not None and len(base)==35
+    # Rather than assume identical fold order, reconstruct archive raw
+    # numeric support ordering from base and explicitly verify folds.
+    raw = pc.ImplicitCliqueGraph.from_graph(base,max_cliques=3000)
+    assert raw is not None and len(raw)==577
+    Hraw = raw.to_networkx(max_edges=300_000)
+    assert Hraw is not None
+    atom_order = list(raw.base_vertices)
+    F = {q: sum(1<<atom_order.index(v) for v in raw.clique(q)) for q in raw}
+    assert list(F.values()) == sorted(F.values())
+    # These six IDs were omitted by the independently replayed archive.
+    H = Hraw.copy()
+    removed = {281,283,289,291,462,468}
+    while removed:
+        fold = next(((v,w) for v in sorted(removed) for w in H[v]
+                     if (set(H[v])|{v}) <= (set(H[w])|{w})),None)
+        assert fold is not None, 'archive label/fold mismatch'
+        v,w = fold
+        H.remove_node(v)
+        removed.remove(v)
+    assert len(H)==571 and H.number_of_edges()==146127
+    pairs = [(a,b) for a,b,c in CUTS308]
+    assert pc.verify_induced_octahedron(H,pairs)
+    V = {x for pair in pairs for x in pair}
+    r = {x:x for x in V}
+    for a,b,c in CUTS308:
+        assert F[a]&~c == 0 and F[b]&c == 0
+    for q in H:
+        if q in V:
+            continue
+        r[q] = next((a if F[q]&~c==0 else b for a,b,c in CUTS308
+                     if F[q]&~c==0 or F[q]&c==0),None)
+        assert r[q] is not None
+    assert pc.verify_retraction_witness(H,H.subgraph(V),(r,{v:v for v in V}))
+    return dict(dimension=22,projection=r,pairs=pairs,method='archived_cut_replay')
+#+end_src
+
+If the current package changes its base atom order or fold labeling, this replay intentionally raises an assertion instead of silently adapting a certificate to the wrong graph. The independent NetworkX replay in the survey reproduced the above exact labels and all 22 cuts. To search blindly rather than replay, use the incidence engine with =backend='walk'=, seed 137, and starting matchings from a generated pool, or the exact SAT backend; the archived restart pool (89 candidates) is not bundled in the current production code. The 250,000-step archived discovery was not a default cold-start call. Replay proves the result even if fresh discovery reaches a limit.
+
+** Unified behavior driver, with a result for every row
+
+For the expensive depth-two hosts, use budgets and record actual status. To avoid constructing enormous P3 graphs the default driver stops at the recorded depth. The earlier archived stage-two methods (joint, pair-first, arbitrary expansive stable image and special incidence restart) do not all correspond one-to-one to public entry points. The following route uses existing engines, tries historically relevant ones first and records a positive proof only when it has verified the sufficient criterion. A finite search cannot promise to rediscover all 502 witnesses. Four historical-only cases are explicitly marked. The =deep= switch enables the private leaf predicate and more expensive fallbacks. The default excludes unresolved graphs from the batch; it is easy to try them individually. A result from the standard classifier is reported separately with its reason and certificate rule; it is a package verdict, not the independent witness replay done by the custom adapters.
+
+#+begin_src jupyter-python
+def behavior_one(identifier, *, deep=False, seconds=30, states=200_000,
+                 standard=True, replay308=True):
+    row = LEDGER[identifier]
+    G = G14[identifier]
+    base = dict(id=identifier, expected=row['status'], recorded_stage=row['stage'],
+                historical_only=row['historical_only'], source=row['behavior_source'])
+    if identifier=='308' and replay308:
+        return {**base,'actual':'DIVERGENT','route':'archived O22 cut replay',
+                'proof':replay_308()}
+    seq = sequence(G)
+    if row['status']=='CONVERGENT':
+        if checked_null(seq,row['stage']):
+            return {**base,'actual':'CONVERGENT','route':'point paring',
+                    'orders':[len(seq[j]) for j in range(row['stage']+1)]}
+        return {**base,'actual':'NOT_REPRODUCED','route':'point paring'}
+    stage = row['stage'] if row['stage'] is not None else 2
+    H = seq[stage]
+    if H is None:
+        return {**base,'actual':'HOST_LIMIT'}
+    if stage < 2 or row['behavior_source']=='second_screen':
+        proof = expansive_search(H,states=states,seconds=seconds,exhaustive_leaf=deep)
+        if proof:
+            return {**base,'actual':'DIVERGENT','route':'expansive stable image','proof':proof}
+    if stage < 2:
+        proof = special_retraction(H)
+        if proof:
+            return {**base,'actual':'DIVERGENT','route':'special O_d retraction','proof':proof}
+    if stage == 2:
+        source = row['behavior_source']
+        backends = ['sat','auto'] if source=='sat_antipodal_csp' else ['auto','sat']
+        for backend in backends:
+            try:
+                proof,status = oct_search(H,backend=backend,states=states,seconds=seconds)
+            except (RuntimeError,ValueError) as err:
+                status = f'BACKEND_UNAVAILABLE: {err}'
+                proof = None
+            if proof:
+                return {**base,'actual':'DIVERGENT','route':f'octahedral {backend}','proof':proof}
+        if deep:
+            for seed in (137,139,71):
+                # A deterministic random relabel may produce a different
+                # search tree. Transport the witness back to the host.
+                nodes = list(H)
+                rng = random.Random(seed); rng.shuffle(nodes)
+                iso = {v:j for j,v in enumerate(nodes)}
+                J = nx.Graph()
+                J.add_nodes_from(range(len(H)))
+                J.add_edges_from((iso[u], iso[v]) for u,v in H.edges)
+                proof = expansive_search(J,states=states,seconds=seconds,
+                                         exhaustive_leaf=True)
+                if proof:
+                    inv = {j:v for v,j in iso.items()}
+                    f = {inv[u]:inv[v] for u,v in proof['map'].items()}
+                    return {**base,'actual':'DIVERGENT','route':'relabel expansive',
+                            'proof':verify_expansive(H,f)}
+            for backend in ('walk','hybrid','sat'):
+                try:
+                    proof,status = incidence_search(seq,backend=backend,seconds=seconds,states=states)
+                except (RuntimeError,ValueError) as err:
+                    status = f'BACKEND_UNAVAILABLE: {err}'; proof=None
+                if proof:
+                    return {**base,'actual':'DIVERGENT','route':f'incidence {backend}',
+                            'proof':proof}
+    if standard:
+        # Small cap by design; the explicit P2 routes above are separate.
+        ans = pc.classify_clique_behavior(G,tries=min(stage+1,3),bound=300,
+                                         clockwork_depth=0,retraction_depth=1)
+        if ans.verdict.name != 'INDETERMINATE':
+            return {**base,'actual':ans.verdict.name,'route':'package classifier',
+                    'reason':ans.reason,'rule':getattr(ans.certificate,'rule',None)}
+    return {**base,'actual':'NOT_REPRODUCED','route':'bounded portfolio'}
+
+def append_jsonl(filename,row):
+    with (OUT/filename).open('a') as file:
+        file.write(json.dumps(row,default=str)+'\n')
+
+def behavior_batch(ids=None, *, deep=False, **kwargs):
+    if ids is None:
+        ids = [i for i,r in LEDGER.items() if r['status']!='UNRESOLVED']
+    results=[]
+    for identifier in map(str,ids):
+        t=time.monotonic()
+        try:
+            result=behavior_one(identifier,deep=deep,**kwargs)
+        except Exception as exc:
+            result=dict(id=identifier,expected=LEDGER[identifier]['status'],
+                        actual='ERROR',error=repr(exc))
+        result['seconds']=round(time.monotonic()-t,3)
+        result['matches_expected']=result['actual']==result['expected']
+        append_jsonl('behavior_replay.jsonl',result)
+        print(identifier,result['expected'],result['actual'],result.get('route'),flush=True)
+        results.append(result)
+    return results
+#+end_src
+
+The loop is sequential to prevent concurrent SAT jobs exhausting RAM. A time bound in a solver does not bound every possible package operation; for very difficult cases launch one input per process with the shell =timeout= command and preserve the log. If =NOT_REPRODUCED=, =HOST_LIMIT=, =ERROR=, or a timeout occurs, retain the expected historical record but *do not* count it as reproduced in the new run.
+
+* Homotopy reproduction of every input
+
+Use the recorded wedge profiles and the package verdict. In particular, homology alone is not a wedge certificate. =homotopy_type_with_verdict= has =is_exact= and =wedge.spheres=; it uses the current cascade of joins, ordinary folds, Morse matching, Dong, recursive Betti/Hurewicz and advanced integral/spherical strategies. Vary the seed and resource caps for hard cases. The earlier source fields distinguish symbolic square checks, spherical generation, consecutive integral Morse etc.; some archived specific certificates are not exposed as a public replay API. A fresh package proof is valid even if obtained by another method. If a returned exact verdict is not a wedge or disagrees with the ledger, flag the case for review rather than treating it as a success.
+
+#+begin_src jupyter-python
+def exact_wedge(H, expected, *, max_simplices=1_000_000,
+                seeds=(0,1,2), recursive_betti_states=4096):
+    trials=[]
+    for seed in seeds:
+        h=pt.homotopy_type_with_verdict(H,max_simplices=max_simplices,
+                    dong_seed=seed,recursive_betti_states=recursive_betti_states)
+        wedge=getattr(h,'wedge',None)
+        spheres=dict(wedge.spheres) if wedge is not None else None
+        row=dict(seed=seed,exact=h.is_exact,verdict=h.verdict,
+                 reason=h.reason,spheres=spheres)
+        trials.append(row)
+        if h.is_exact:
+            return dict(status='VERIFIED' if spheres==expected else 'EXACT_MISMATCH',
+                        expected=expected,actual=spheres,trials=trials)
+    return dict(status='NOT_REPRODUCED',expected=expected,trials=trials)
+
+def homotopy_one(identifier, *, max_simplices=1_000_000,
+                 seeds=(0,1,2), recursive_betti_states=4096):
+    row=LEDGER[identifier]
+    seq=sequence(G14[identifier])
+    result=dict(id=identifier,source=row['homotopy_source'])
+    # P0 and P1 are homotopy equivalent to the actual G and K(G).
+    for stage,key in enumerate(('G','KG')):
+        H=seq[stage]
+        if H is None:
+            result[key]=dict(status='HOST_LIMIT',expected=row[key])
+        else:
+            result[key]=exact_wedge(H,row[key],max_simplices=max_simplices,
+                    seeds=seeds,recursive_betti_states=recursive_betti_states)
+    return result
+
+def homotopy_batch(ids=None, **kwargs):
+    ids=LEDGER if ids is None else map(str,ids)
+    results=[]
+    for identifier in ids:
+        t=time.monotonic()
+        try:
+            r=homotopy_one(identifier,**kwargs)
+        except Exception as err:
+            r=dict(id=identifier,error=repr(err),G={'status':'ERROR'},KG={'status':'ERROR'})
+        r['seconds']=round(time.monotonic()-t,3)
+        append_jsonl('homotopy_replay.jsonl',r)
+        print(identifier,r['G']['status'],r['KG']['status'],flush=True)
+        results.append(r)
+    return results
+#+end_src
+
+The full topology census is not restricted to the 520 determined behavior cases: all 540 G/K(G) pairs have recorded types. The only equal profiles are the point-point cases. Several original contractible graphs are divergent, including 379. For example 189, 409 and 421 have noncontractible original and contractible first complexes in the ledger; 421 is null, but 189 and 409 are divergent. Thus the behavior cannot be inferred from either contractibility test.
+
+** Historical homotopy certificate classes and escalation
+
+The following gives the number of cases by recorded proof source. For every ID the embedded record exposes the source and expected profiles. First use the current unified topology recognizer. Next try increased simplicial and recursive Betti limits and several Dong seeds; do not substitute a rational Betti calculation for an exact proof. The archived final twelve certificate ZIP and full transition table provide the older detailed evidence if accessible. No assertion is made here that every archived specialized symbolic proof is already exposed as a public package command.
+
+| Recorded source | Count |
+|-----------------+-------|
+| production_post58 | 307 |
+| production_post63_SQ2 | 69 |
+| octahedral_integral | 37 |
+| post64_SQ2 | 9 |
+| spherical_generation | 86 |
+| production_post63_INTEGRAL_MORSE | 8 |
+| previous_symbolic_sq2 | 1 |
+| consecutive_integral_retry | 17 |
+| prototype_consecutive | 2 |
+| symbolic_sq2_negative_control | 1 |
+| post64_SPHERICAL_ORBIT | 1 |
+| post64_CONSECUTIVE | 1 |
+| post64_DONG | 1 |
+
+#+begin_src jupyter-python
+assert Counter(r['homotopy_source'] for r in LEDGER.values()) == dict(zip(HOMO_SOURCE,
+    [307,69,37,9,86,8,1,17,2,1,1,1,1]))
+
+def cases(behavior_source=None,homotopy_source=None):
+    return [i for i,r in LEDGER.items()
+            if (behavior_source is None or r['behavior_source']==behavior_source)
+            and (homotopy_source is None or r['homotopy_source']==homotopy_source)]
+
+def inspect_case(identifier):
+    print(json.dumps(LEDGER[str(identifier)],indent=2))
+    print('cubic graph6:',nx.to_graph6_bytes(CUBIC[str(identifier)],header=False).decode().strip())
+#+end_src
+
+* Earlier small orders
+
+The historical LAGOS computations used eventual clique-Helly, special octahedra and retracts to \(O_3\), suspensions and cycle complements. Below is an executable route for each cubic graph through order 12, using the current standard classifier and the same topology routine. The order-12 catalog is complete but the updated later behavior ledger is not recovered; record newly obtained verdicts separately. The defaults intentionally limit explicit iterates. In particular, =CONVERGENT= need not mean =clique-null= (the pared complement of \(K_{3,3}\sqcup K_{3,3}\) is \(C_4\)).
+
+#+begin_src jupyter-python
+def small_order(n, *, bound=500, tries=4, deep=False):
+    results=[]
+    for i,c in catalog(n).items():
+        G=nx.complement(c)
+        ans=pc.classify_clique_behavior(G,bound=bound,tries=tries,
+                    clockwork_depth=0,retraction_depth=2)
+        r=dict(order=n,id=i,cubic_graph6=nx.to_graph6_bytes(c,header=False).decode().strip(),
+               status=ans.verdict.name,reason=ans.reason)
+        if ans.verdict.name=='INDETERMINATE' and deep:
+            seq=sequence(G)
+            for j in range(3):
+                H=seq[j]
+                if H is None: break
+                if len(H)==1:
+                    r.update(status='CONVERGENT',reason='point paring',stage=j);break
+                proof=expansive_search(H,exhaustive_leaf=True)
+                if proof:
+                    r.update(status='DIVERGENT',reason='expansive stable image',stage=j,proof=proof);break
+                proof,status=oct_search(H,backend='auto')
+                if proof:
+                    r.update(status='DIVERGENT',reason='octahedral retract',stage=j,proof=proof);break
+        # Explicit package result, with no assumed topology when not exact.
+        seq=sequence(G)
+        for j,key in enumerate(('G','KG')):
+            H=seq[j]
+            if H is not None:
+                h=pt.homotopy_type_with_verdict(H,max_simplices=1_000_000)
+                r[key]=dict(exact=h.is_exact,verdict=h.verdict,reason=h.reason)
+        append_jsonl(f'order{n}_replay.jsonl',r)
+        print(n,i,r['status'],flush=True)
+        results.append(r)
+    print(Counter(r['status'] for r in results))
+    return results
+#+end_src
+
+* Research certificates beyond current package functionality
+
+The third-iterate research in the survey does not classify any additional graphs. The current =ImplicitCliqueGraph= can pare a stored family of clique masks, but it is not an implicit maximal-clique SAT representation; do not attempt to enumerate the enormous third iterates. The following archive instructions preserve the distinction between verified finite growth, excluded retraction families and complete behavior proofs. The listed later archives were produced in the continuation and can be extracted into separate folders. Their local verifiers depend on NetworkX (some optional discovery code uses Z3 and C++17); they are not pycliques APIs. Archive labels and production labels are not interchangeable.
+
+| Archive | Relevant command from archive root | Result |
+|---------+------------------------------------+--------|
+| cubic14_implicit_third_iterate_research.zip | python implicit/verify_certificates.py | Induced octahedra, not retracts |
+| cubic14_implicit_domination_research.zip | python hull/verify.py | Hulls and switch certificates |
+| cubic14_defect_three_research.zip | python local_obstruction/verify_defect_three.py | h_K(P2(182)) >= 3 |
+| cubic14_symbolic_lift_research.zip | python adaptive_lift/verify_symbolic.py | 425984, 7953920, 67108864 induced dimensions |
+| cubic14_symbolic_lift_research.zip | python adaptive_lift/verify_universal.py | Forced partial-retraction images |
+| cubic14_mandatory_shores_research.zip | python general_symbolic/verify_mandatory.py | All three particular lifted target families excluded |
+| cubic14_ranked_paring_research.zip | python rounds/replay_final.py 182 | 77 hulls and lexicographic ranking |
+| cubic14_ranked_paring_research.zip | python rounds/replay.py 441 | Four ranked templates |
+| cubic14_ranked_paring_research.zip | python rounds/verify_inputs.py | Count inputs match certified templates |
+
+To reproduce the certified lower bound of 102,516,282 simultaneously removable cliques of graph 182, after verifying the inputs of the final ranked archive:
+
+#+begin_src sh :tangle no
+g++ -O3 -march=native rounds/count64.cpp -o /tmp/pareunion64
+g++ -O3 -march=native rounds/count_increment.cpp -o /tmp/pareincrement
+/tmp/pareunion64 < rounds/union182.input
+/tmp/pareincrement < rounds/increment182.input
+#+end_src
+
+These are two disjoint bounded enumerations, yielding at least 99,340,876 and 3,175,406 respectively. They are not exact counts. The survey proves the ranking and successive-round theorems; the remaining implicit graph is not known to be stiff. The earlier archive =cubic_expansive_census_research.zip= is described in its README as having =verify_ledger.py=, =verified_retractions.json= and =behavior_ledger.csv= (480 verified positive maps at that historical stage, four carried-forward results). The stage-two archives =cubic_joint_antipodal_research.zip=, =cubic_pair_first_research.zip=, =cubic_sat_research.zip=, =cubic_incidence_post67_research.zip= and =certificate308.json= contain the later evidence. Some of those earlier project files were readable as text but not extractable as raw bytes in this session; no invented verification commands are supplied for them. Consult their README files before rerunning or porting. The full original homotopy profiles have been transcribed above so comparison does not depend on recovering the original CSV.
+
+* Suggested evaluation order
+
+The following block is deliberately marked =:tangle no=, so importing the tangled code does not launch a full expensive census. To run individual blocks, select the shared Jupyter session. For a full replay, begin with the smoke tests and then explicitly enable the longer loops. Results are written to append-only JSONL files and may contain several attempts per ID.
+
+#+begin_src jupyter-python :tangle no
+# Small, known examples and the 18 null certificates.
+print(replay_308()['dimension'])
+print([replay_null(i) for i in NULL1+NULL2])
+inspect_case(379)
+behavior_batch(['1','27','308','379'],deep=True)
+homotopy_batch(['1','27','308','379','441'])
+#+end_src
+
+#+begin_src jupyter-python :tangle no
+# Full census: evaluate only when ready for long runs.
+# behavior_batch(seconds=60,states=1_000_000,deep=True)
+# homotopy_batch(max_simplices=4_000_000,seeds=(0,1,2,137,139))
+# for n in (4,6,8,10,12): small_order(n,deep=True)
+# A focused second pass on historical-only records:
+# behavior_batch(['150','252','270','472'],deep=True,seconds=120,states=2_000_000)
+#+end_src
+
+** Audit the actual replay
+
+This code reads the local results, reports the most recent attempt for each ID, and keeps not-yet-verified archived results separate. It never overwrites the original expectations.
+
+#+begin_src jupyter-python
+def latest_results(filename):
+    latest={}
+    path=OUT/filename
+    if path.exists():
+        for line in path.read_text().splitlines():
+            if line.strip():
+                row=json.loads(line); latest[row['id']]=row
+    return latest
+
+def audit():
+    B=latest_results('behavior_replay.jsonl')
+    T=latest_results('homotopy_replay.jsonl')
+    behavior_ok=[i for i,row in LEDGER.items() if row['status']!='UNRESOLVED'
+                 and B.get(i,{}).get('actual')==row['status']]
+    topo_ok=[i for i in LEDGER if all(T.get(i,{}).get(k,{}).get('status')=='VERIFIED'
+                                    for k in ('G','KG'))]
+    return dict(recorded_determined=520, reproduced_behavior=len(behavior_ok),
+                recorded_topology_pairs=540,reproduced_topology_pairs=len(topo_ok),
+                missing_behavior=[i for i,row in LEDGER.items()
+                                  if row['status']!='UNRESOLVED' and i not in behavior_ok],
+                missing_topology=[i for i in LEDGER if i not in topo_ok],
+                historical_only_not_reproduced=[i for i,row in LEDGER.items()
+                                if row['historical_only'] and i not in behavior_ok])
+print(audit())
+#+end_src
+
+The ideal next step is to integrate a public expansive acceptance predicate into the existing coaffine engine (rather than duplicating search algorithms), and to extend the existing implicit paring package to represent survivor constraints symbolically. Only then can one reasonably aim at a uniform package-only blind reproduction of every previously resolved case and extend the census to the remaining twenty.
+
+# Local Variables:
+# org-confirm-babel-evaluate: t
+# End:

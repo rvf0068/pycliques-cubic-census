@@ -1,0 +1,13 @@
+# Provenance and conventions
+
+The CSVs are transcriptions of the project files updated_behavior_ledger.csv and cubic14_complete_homotopy_transitions.csv (26 November 2026 snapshot). Headers, IDs, sources and values are retained. The order of disconnected rows differs: join on **id**, not index. The zero-based index is local to each ledger. Connected IDs are one-based line numbers of the fixed data/cubic14.g6. Graph6 encodes the cubic graph C; the studied graph is G = complement(C).
+
+Disconnected IDs: 4+10:j for the disjoint union of K4 and connected cubic j of order 10; 6+8:i:j for order-six graph i and connected cubic j of order eight; 4+4+6:i for two K4 factors and order-six graph i. Here i=1 is K3,3, i=2 is the triangular prism.
+
+Connected datasets are exact copies from the pyg6data package in [pycliques-project](https://github.com/rvf0068/pycliques-project), originally sourced from [House of Graphs](https://houseofgraphs.org/Cubic). See data/manifest.json for Git blob identities. Cite Coolsaet, D'hondt and Goedgebeur, *House of Graphs 2.0*, Discrete Applied Mathematics 325 (2023), 97–107.
+
+Behavior: DIVERGENT, CONVERGENT (all 18 recorded cases pare to a point), UNRESOLVED_IN_LEDGER. Stage refers to the pared iterate P_0 = pare(G), P_{j+1}=pare(K(P_j)); some positives were found on the unpared precursor. Source is a historical discovery route, not a current runtime status. Target is the archived description. Four earlier_archived_certificate_not_replayed cases are historical-only. Other positive verdicts have reported earlier replay but, apart from 308 and reproducible point reductions, the actual witnesses are not yet bundled. All topology profiles are reported exact; their individual certificates are not bundled in this import. Empty JSON object means a point. The topology ledger's same compares the recorded exact wedge profiles.
+
+The JSON for 308 is the saved certificate with raw clique IDs and support masks. Six raw IDs are folded out to obtain the 571-vertex host. The survey and workbook are recovered research documents; bounded rediscovery is not guaranteed. No complete updated order-12 ledger has been recovered.
+
+Literature: R. Villarroel-Flores, [On the clique behavior and Hellyness of the complements of regular graphs](https://doi.org/10.1016/j.disc.2022.113230), Discrete Mathematics 346 (2023), 113230; F. Larrión, V. Neumann-Lara, M. A. Pizaña, *On expansive graphs*, European Journal of Combinatorics 30 (2009), 372–379.

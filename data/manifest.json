@@ -1,0 +1,25 @@
+{
+  "source": "rvf0068/pycliques-project/packages/pyg6data/src/pyg6data/data",
+  "datasets": [
+    {
+      "order": 8,
+      "sha": "ca3e8e99ac0b5587b6e5eff979764b3c55ec778a",
+      "count": 5
+    },
+    {
+      "order": 10,
+      "sha": "e809139e2d6bcc81b28a86f6536bffc4ea905c3a",
+      "count": 19
+    },
+    {
+      "order": 12,
+      "sha": "0676bcec761dda1f8469c52faac36601b201f0df",
+      "count": 85
+    },
+    {
+      "order": 14,
+      "sha": "0a2e0fb60b4fc9414b7b195fc53b771ebbc031f1",
+      "count": 509
+    }
+  ]
+}
