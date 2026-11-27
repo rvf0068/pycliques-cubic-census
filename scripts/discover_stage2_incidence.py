@@ -5,7 +5,8 @@ import json
 import networkx as nx
 import pycliques as pc
 
-from validate_census import catalog, fold, pared_step, relabel, read_csv
+from validate_census import (catalog, clique_masks, fold, intersection_graph,
+                              pared_step, relabel, read_csv)
 from verify_coaffine import verify_expansive
 
 
